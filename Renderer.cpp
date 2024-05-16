@@ -284,7 +284,7 @@ bool Renderer::initBuffers() {
     std::cout << "initializing buffers" << std::endl;
 
     std::vector<VertexData> model;
-    bool success = ResourceLoader::loadObj(RESOURCE_DIR "/teapot.obj", model);
+    bool success = ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", model);
     if (!success) {
         std::cerr << "failed to load obj file" << std::endl;
         return false;

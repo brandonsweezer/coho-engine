@@ -17,6 +17,8 @@ public:
 
     static std::string loadShaderCode(std::string path);
     
-    static bool loadObj(const std::string& path, std::vector<VertexData>& vertexData);
+    static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
     
+    bool ResourceLoader::loadGLTF(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
+
 };

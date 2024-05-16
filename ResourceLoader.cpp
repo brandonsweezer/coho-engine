@@ -1,5 +1,6 @@
 #include "ResourceLoader.h"
 #include "tiny_obj_loader.h"
+#include "tiny_gltf.h"
 
 #include <iostream>
 #include <string>
@@ -23,27 +24,63 @@ std::string ResourceLoader::loadShaderCode(std::string path) {
     return shaderSource;
 }
 
-bool ResourceLoader::loadObj(const std::string& path, std::vector<VertexData>& vertexData) {
-    std::cout << "loading .obj file: " << path << std::endl;
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn;
+bool ResourceLoader::loadGLTF(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData) {
+    tinygltf::TinyGLTF loader;
+    tinygltf::Model model;
     std::string err;
+    std::string warn;
+    bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, path + std::string("/") + filename, 0);
 
-    bool success = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str());
     if (!warn.empty()) {
-        std::cout << warn << std::endl;
+        std::cout << "warning: " << warn.c_str() << std::endl;
     }
-
     if (!err.empty()) {
-        std::cerr << err << std::endl;
+        std::cout << "err: " << err.c_str() << std::endl;
     }
-    if (!success) {
-        std::cerr << "could not load obj file! " << path << std::endl;
+    if (!ret) {
+        std::cout << "failed to load file: " << path << "/" << filename << std::endl;
+        return false;
     }
 
     vertexData.clear();
+    for (tinygltf::Mesh mesh : model.meshes) {
+        for (tinygltf::Primitive primitive : mesh.primitives) {
+            int accessorIndex = primitive.attributes["POSITION"];
+            tinygltf::Accessor accessor = model.accessors[accessorIndex];
+            tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
+            tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
+            
+        }
+    }
+    // TODO this doesn't work, and I'd rather spend my time working on adding rendering features rather than parsing files
+    return true;
+}
+
+bool ResourceLoader::loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData) {
+    std::cout << "loading .obj file: " << filename << "from " << path << std::endl;
+
+    tinyobj::ObjReaderConfig reader_config;
+    reader_config.mtl_search_path = path.c_str();
+
+    tinyobj::ObjReader reader;
+
+    if (!reader.ParseFromFile(path + std::string("/") + filename, reader_config)) {
+        if (!reader.Error().empty()) {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+        return false;
+    }
+    if (!reader.Warning().empty()) {
+        std::cout << "TinyObjReader: " << reader.Warning();
+    }
+
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+    // auto& materials = reader.GetMaterials();
+
+
+    vertexData.clear();
+    
     // could be multiple shapes in obj file
     for (auto shape : shapes) {
         // combine all shapes into offset VertexData array
