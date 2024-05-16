@@ -3,6 +3,7 @@
 #include <webgpu/webgpu.hpp>
 #include <sdl2webgpu/sdl2webgpu.h>
 #include <glm/glm.hpp>
+#include <vector>
 
 class Renderer
 {
@@ -14,27 +15,36 @@ public:
     void terminate();
 
 private:
-    bool initInstance();
-
     bool initWindowAndSurface();
-
-    bool initAdapter();
+    void releaseWindowAndSurface();
 
     bool initDevice();
-
-    bool initQueue();
+    void releaseDevice();
 
     bool initRenderPipeline();
+    void releaseRenderPipeline();
 
     bool initShaderModule();
+    void releaseShaderModule();
 
     bool initBuffers();
+    void releaseBuffers();
 
-    bool initBindGroup();
+    bool initBindGroups();
+    void releaseBindGroups();
 
     bool initSwapChain();
+    void releaseSwapChain();
 
     bool initDepthBuffer();
+    void releaseDepthBuffer();
+
+    void resizeWindow(int new_width, int new_height);
+
+    void updateProjectionMatrix();
+    void updateViewMatrix();
+
+    void handleInput();
 
 private:
     int m_screenWidth = 640;
@@ -42,15 +52,37 @@ private:
 
     bool m_isRunning = true;
 
-
     struct UniformData {
         glm::mat4x4 model_matrix;
         glm::mat4x4 view_matrix;
         glm::mat4x4 projection_matrix;
+        glm::vec3 camera_world_position;
         float time;
-        float padding[15]; // need to chunk into 4x4x4 sections (4x4 floats)
+        float padding[3]; // need to chunk into 4x4x4 sections (4x4 floats)
     };
     UniformData m_uniformData;
+
+    struct Camera {
+        glm::vec3 position;
+        glm::vec3 forward;
+        glm::vec2 angles = { 0.0, 0.0 };
+        
+        float zoom = -3.5;
+    };
+    Camera m_camera;
+
+    struct DragState {
+		bool active = false;
+		glm::vec2 startMouse;
+		Camera startCameraState;
+		float sensitivity = 0.01f;
+		float scrollSensitivity = 0.1f;
+
+		glm::vec2 velocity = {0.0, 0.0};
+		glm::vec2 previousDelta;
+		float inertia = 0.9f;
+	};
+    DragState m_dragState;
 
     wgpu::Instance m_instance = nullptr;
     SDL_Window* m_window = nullptr;
@@ -77,4 +109,5 @@ private:
     wgpu::Texture m_depthTexture = nullptr;
     wgpu::TextureView m_depthTextureView = nullptr;
 
+    std::vector<bool> m_keys;
 };

@@ -13,17 +13,11 @@ using vec2 = glm::vec2;
 using mat4x4 = glm::mat4x4;
 using VertexData = ResourceLoader::VertexData;
 
+const float PI = 3.14159265358979323846f;
+
 void Renderer::onFrame() {
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        switch (e.type) {
-            case SDL_QUIT:
-                m_isRunning = false;
-                break;
-            default:
-                break;
-        }
-    }
+    handleInput();
+
     m_uniformData.time = SDL_GetTicks64() / 1000.0f;
     m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, time), &m_uniformData.time, sizeof(UniformData::time));
 
@@ -78,16 +72,77 @@ void Renderer::onFrame() {
     commandBuffer.release();
     commandEncoder.release();
     currentTextureView.release();
+
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        switch (e.type) {
+            case SDL_QUIT:
+                m_isRunning = false;
+                break;
+            case SDL_WINDOWEVENT:
+                switch (e.window.event) {
+                    case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    case SDL_WINDOWEVENT_RESIZED:
+                        std::cout << "window resized!!" << std::endl;
+                        resizeWindow(e.window.data1, e.window.data2);
+                        break;
+                }
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+                m_dragState.active = true;
+                m_dragState.startCameraState = m_camera;
+                int xpos, ypos;
+                SDL_GetMouseState(&xpos, &ypos);
+                m_dragState.startMouse = vec2((float)xpos, (float)ypos);
+                break;
+            case SDL_MOUSEBUTTONUP:
+                m_dragState.active = false;
+                break;
+            case SDL_MOUSEWHEEL:
+                m_camera.zoom += e.wheel.y * .1f;
+                updateViewMatrix();
+                break;
+            case SDL_KEYDOWN:
+                m_keys[e.key.keysym.sym] = true;
+                break;
+            case SDL_KEYUP:
+                m_keys[e.key.keysym.sym] = false;
+                break;
+            default:
+                break;
+        }
+    }
+    
+}
+
+void Renderer::handleInput() {
+    if (m_dragState.active) {
+        int xpos, ypos;
+        SDL_GetMouseState(&xpos, &ypos);
+        vec2 currentMouse = vec2((float)xpos, (float)ypos);
+		vec2 delta = (currentMouse - m_dragState.startMouse) * m_dragState.sensitivity;
+		m_camera.angles = m_dragState.startCameraState.angles + delta;
+		// Clamp to avoid going too far when orbitting up/down
+		m_camera.angles.y = glm::clamp(m_camera.angles.y, -PI / 2 + 1e-5f, PI / 2 - 1e-5f);
+
+		m_dragState.velocity = delta - m_dragState.previousDelta;
+		m_dragState.previousDelta = delta;
+        updateViewMatrix();
+    }
+
+}
+
+bool Renderer::isRunning() {
+    return m_isRunning;
 }
 
 bool Renderer::init() {
-    if (!initInstance()) return false;
+    m_keys.resize(322, false); // 322 is number of SDL keycodes
     if (!initWindowAndSurface()) return false;
     if (!initDevice()) return false;
-    if (!initQueue()) return false;
     if (!initShaderModule()) return false;
     if (!initBuffers()) return false;
-    if (!initBindGroup()) return false;
+    if (!initBindGroups()) return false;
     if (!initRenderPipeline()) return false;
     if (!initSwapChain()) return false;
     if (!initDepthBuffer()) return false;
@@ -95,46 +150,75 @@ bool Renderer::init() {
     return true;
 }
 
-bool Renderer::isRunning() {
-    return m_isRunning;
+void Renderer::terminate() {
+    // TODO: implement shared pointers or RAII of some sort
+    // still figuring out where/how to implement a wrapper class
+    // or if that's unnecessary and i should just use shared_ptrs?
+    releaseDepthBuffer();
+    releaseSwapChain();
+    releaseRenderPipeline();
+    releaseBindGroups();
+    releaseBuffers();
+    releaseShaderModule();
+    releaseDevice();
+    releaseWindowAndSurface();
 }
 
-void Renderer::terminate() {
+void Renderer::releaseDepthBuffer() {
+    m_depthTexture.destroy();
+    m_depthTexture.release();
+    m_depthTextureView.release();
+}
 
+void Renderer::releaseSwapChain() {
+    m_swapChain.release();
+}
+
+void Renderer::releaseRenderPipeline() {
     m_renderPipeline.release();
+}
+
+void Renderer::releaseBindGroups() {
     m_bindGroupLayout.release();
     m_bindGroup.release();
-    
+}
+
+void Renderer::releaseBuffers() {
     m_vertexBuffer.destroy();
     m_vertexBuffer.release();
     m_uniformBuffer.destroy();
     m_uniformBuffer.release();
 
+}
+
+void Renderer::releaseShaderModule() {
     m_shaderModule.release();
+}
+
+void Renderer::releaseDevice() {
     m_queue.release();
     m_device.release();
+}
+
+void Renderer::releaseWindowAndSurface() {
     m_surface.release();
     SDL_RELEASE(m_window);
     m_instance.release();
     SDL_Quit();
 }
 
-bool Renderer::initInstance() {
+bool Renderer::initWindowAndSurface() {
     m_instance = createInstance(InstanceDescriptor{});
     if (!m_instance) return false;
-    return true;
-}
 
-bool Renderer::initWindowAndSurface() {
     std::cout << "initializing SDL" << std::endl;
     SDL_SetMainReady();
     if (SDL_Init(SDL_INIT_VIDEO) == -1) {
         return false;
     }
 
-
     std::cout << "initializing window" << std::endl;
-    m_window = SDL_CreateWindow("Renderer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, m_screenWidth, m_screenHeight, 0);
+    m_window = SDL_CreateWindow("Renderer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, m_screenWidth, m_screenHeight, SDL_WINDOW_RESIZABLE);
     if (!m_window) return false;
 
     std::cout << "initializing surface" << std::endl;
@@ -166,10 +250,10 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxVertexAttributes = 4;
     requiredLimits.limits.maxBufferSize = 150000 * sizeof(VertexData);
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
-    requiredLimits.limits.maxInterStageShaderComponents = 6;
+    requiredLimits.limits.maxInterStageShaderComponents = 9;
 
-    requiredLimits.limits.maxTextureDimension1D = 1920;
-    requiredLimits.limits.maxTextureDimension2D = 1920;
+    requiredLimits.limits.maxTextureDimension1D = 1440;
+    requiredLimits.limits.maxTextureDimension2D = 5120;
     requiredLimits.limits.maxTextureArrayLayers = 1;
 
     DeviceDescriptor deviceDesc;
@@ -187,15 +271,11 @@ bool Renderer::initDevice() {
         std::cout << "Device error! " << type << "(\n" << message << "\n)" << std::endl;
     });
 
-    adapter.release();
-
-    return true;
-}
-
-bool Renderer::initQueue() {
     std::cout << "initializing queue" << std::endl;
     m_queue = m_device.getQueue();
     if (!m_queue) return false;
+
+    adapter.release();
 
     return true;
 }
@@ -203,23 +283,23 @@ bool Renderer::initQueue() {
 bool Renderer::initBuffers() {
     std::cout << "initializing buffers" << std::endl;
 
-    std::vector<VertexData> teapot;
-    bool success = ResourceLoader::loadObj(RESOURCE_DIR "/teapot.obj", teapot);
+    std::vector<VertexData> model;
+    bool success = ResourceLoader::loadObj(RESOURCE_DIR "/teapot.obj", model);
     if (!success) {
         std::cerr << "failed to load obj file" << std::endl;
         return false;
     }
 
-    m_vertexCount = (uint32_t)teapot.size();
+    m_vertexCount = (uint32_t)model.size();
 
     BufferDescriptor bufferDesc;
     bufferDesc.label = "vertex buffer";
     bufferDesc.usage = BufferUsage::Vertex | BufferUsage::CopyDst;
-    bufferDesc.size = teapot.size() * sizeof(VertexData);
+    bufferDesc.size = model.size() * sizeof(VertexData);
 
     m_vertexBuffer = m_device.createBuffer(bufferDesc);
 
-    m_queue.writeBuffer(m_vertexBuffer, 0, teapot.data(), bufferDesc.size);
+    m_queue.writeBuffer(m_vertexBuffer, 0, model.data(), bufferDesc.size);
 
     bufferDesc.label = "uniform buffer";
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
@@ -228,18 +308,18 @@ bool Renderer::initBuffers() {
 
     m_uniformData.time = 1.0;
     float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
-    m_uniformData.projection_matrix = glm::perspective(45.0f * 3.14f / 180.0f, aspectRatio, 0.001f, 100.0f);
+    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 100.0f);
 
     m_uniformData.model_matrix = mat4x4(1.0);
-    m_uniformData.view_matrix = glm::lookAt(vec3(50.0f, 10.0f, 40.0f), vec3(0.0f), vec3(0, 1.0f, 0));
 
     m_queue.writeBuffer(m_uniformBuffer, 0, &m_uniformData, sizeof(UniformData));
+    updateViewMatrix();
 
     return true;
 }
 
-bool Renderer::initBindGroup() {
-    std::cout << "initializing bind group" << std::endl;
+bool Renderer::initBindGroups() {
+    std::cout << "initializing bind groups" << std::endl;
     std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(1, Default);
     bindGroupLayoutEntries[0].binding = 0;
     bindGroupLayoutEntries[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
@@ -414,4 +494,42 @@ bool Renderer::initDepthBuffer() {
     m_depthTextureView = m_depthTexture.createView(depthTextureViewDesc);
     
     return true;
+}
+
+void Renderer::updateProjectionMatrix() {
+    float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
+    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 100.0f);
+    m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, projection_matrix), &m_uniformData.projection_matrix, sizeof(UniformData::projection_matrix));
+}
+
+void Renderer::updateViewMatrix() {
+    // TODO: implement trackball camera controls 
+    // arcball implementation
+    float cx = cos(m_camera.angles.x);
+	float cy = cos(m_camera.angles.y);
+	float sx = sin(m_camera.angles.x);
+	float sy = sin(m_camera.angles.y);
+
+	vec3 position = vec3(cx * cy, sy, sx * cy) * std::exp(-m_camera.zoom);
+    m_uniformData.camera_world_position = position;
+	m_uniformData.view_matrix = glm::lookAt(position, vec3(0.0f), vec3(0, 1, 0));
+	m_queue.writeBuffer(m_uniformBuffer,
+		0,
+		&m_uniformData,
+		sizeof(UniformData)
+	);
+}
+
+void Renderer::resizeWindow(int new_width, int new_height) {
+    std::cout << "resizing window" << std::endl;
+    m_screenWidth = new_width;
+    m_screenHeight = new_height;
+
+    releaseDepthBuffer();
+    releaseSwapChain();
+
+    initDepthBuffer();
+    initSwapChain();
+
+    updateProjectionMatrix();
 }
