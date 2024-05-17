@@ -142,6 +142,7 @@ bool Renderer::init() {
     if (!initDevice()) return false;
     if (!initShaderModule()) return false;
     if (!initBuffers()) return false;
+    if (!initTextures()) return false;
     if (!initBindGroups()) return false;
     if (!initRenderPipeline()) return false;
     if (!initSwapChain()) return false;
@@ -158,6 +159,7 @@ void Renderer::terminate() {
     releaseSwapChain();
     releaseRenderPipeline();
     releaseBindGroups();
+    releaseTextures();
     releaseBuffers();
     releaseShaderModule();
     releaseDevice();
@@ -247,14 +249,16 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
     requiredLimits.limits.maxBindGroups = 1;
     requiredLimits.limits.maxVertexBuffers = 1;
-    requiredLimits.limits.maxVertexAttributes = 4;
+    requiredLimits.limits.maxVertexAttributes = 6;
     requiredLimits.limits.maxBufferSize = 150000 * sizeof(VertexData);
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
-    requiredLimits.limits.maxInterStageShaderComponents = 9;
+    requiredLimits.limits.maxInterStageShaderComponents = 17;
 
     requiredLimits.limits.maxTextureDimension1D = 1440;
     requiredLimits.limits.maxTextureDimension2D = 5120;
     requiredLimits.limits.maxTextureArrayLayers = 1;
+    requiredLimits.limits.maxSampledTexturesPerShaderStage = 2;
+    requiredLimits.limits.maxSamplersPerShaderStage = 1;
 
     DeviceDescriptor deviceDesc;
     deviceDesc.defaultQueue = QueueDescriptor{};
@@ -289,6 +293,7 @@ bool Renderer::initBuffers() {
         std::cerr << "failed to load obj file" << std::endl;
         return false;
     }
+    std::cout << model[0].tangent.x << ", " << model[0].tangent.y << ", " << model[0].tangent.z << std::endl;
 
     m_vertexCount = (uint32_t)model.size();
 
@@ -318,13 +323,79 @@ bool Renderer::initBuffers() {
     return true;
 }
 
+bool Renderer::initTextures() {
+    std::cout << "loading textures" << std::endl;
+    m_albedoTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_albedo.jpg", m_device);
+    TextureViewDescriptor texViewDesc;
+    texViewDesc.arrayLayerCount = 1;
+    texViewDesc.baseArrayLayer = 0;
+    texViewDesc.aspect = TextureAspect::All;
+    texViewDesc.baseMipLevel = 0;
+    texViewDesc.mipLevelCount = 8;
+    texViewDesc.dimension = TextureViewDimension::_2D;
+    texViewDesc.format = TextureFormat::RGBA8Unorm;
+    texViewDesc.label = "albedoTextureView";
+    m_albedoTextureView = m_albedoTexture.createView(texViewDesc);
+
+    m_normalTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_normals.png", m_device);
+    texViewDesc.label = "normalTextureView";
+    m_normalTextureView = m_normalTexture.createView(texViewDesc);
+
+    SamplerDescriptor samplerDesc;
+    samplerDesc.addressModeU = AddressMode::Repeat;
+    samplerDesc.addressModeV = AddressMode::Repeat;
+    samplerDesc.addressModeW = AddressMode::Repeat;
+    samplerDesc.magFilter = FilterMode::Linear;
+    samplerDesc.minFilter = FilterMode::Linear;
+    samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
+    samplerDesc.lodMaxClamp = 8.0;
+    samplerDesc.lodMinClamp = 0.0;
+    samplerDesc.maxAnisotropy = 1;
+    samplerDesc.compare = CompareFunction::Undefined;
+    m_textureSampler = m_device.createSampler(samplerDesc);
+
+    return true;
+}
+
+void Renderer::releaseTextures() {
+    m_textureSampler.release();
+    
+    m_albedoTexture.destroy();
+    m_albedoTexture.release();
+    m_albedoTextureView.release();
+
+    m_normalTexture.destroy();
+    m_normalTexture.release();
+    m_normalTextureView.release();
+}
+
 bool Renderer::initBindGroups() {
     std::cout << "initializing bind groups" << std::endl;
-    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(1, Default);
+    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(4, Default);
+    // uniform layout
     bindGroupLayoutEntries[0].binding = 0;
     bindGroupLayoutEntries[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     bindGroupLayoutEntries[0].buffer.type = BufferBindingType::Uniform;
     bindGroupLayoutEntries[0].buffer.minBindingSize = sizeof(UniformData);
+
+    // albedo layout
+    bindGroupLayoutEntries[1].binding = 1;
+    bindGroupLayoutEntries[1].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindGroupLayoutEntries[1].texture.sampleType = TextureSampleType::Float;
+    bindGroupLayoutEntries[1].texture.multisampled = false;
+    bindGroupLayoutEntries[1].texture.viewDimension = TextureViewDimension::_2D;
+
+    // normal map layout
+    bindGroupLayoutEntries[2].binding = 2;
+    bindGroupLayoutEntries[2].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindGroupLayoutEntries[2].texture.sampleType = TextureSampleType::Float;
+    bindGroupLayoutEntries[2].texture.multisampled = false;
+    bindGroupLayoutEntries[2].texture.viewDimension = TextureViewDimension::_2D;
+
+    // texture sampler layout
+    bindGroupLayoutEntries[3].binding = 3;
+    bindGroupLayoutEntries[3].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindGroupLayoutEntries[3].sampler.type = SamplerBindingType::Filtering;
 
     BindGroupLayoutDescriptor bindGroupLayoutDesc;
     bindGroupLayoutDesc.entries = bindGroupLayoutEntries.data();
@@ -332,11 +403,23 @@ bool Renderer::initBindGroups() {
 
     m_bindGroupLayout = m_device.createBindGroupLayout(bindGroupLayoutDesc);
 
-    std::vector<BindGroupEntry> bindGroupEntries(1, Default);
+    std::vector<BindGroupEntry> bindGroupEntries(4, Default);
     bindGroupEntries[0].binding = 0;
     bindGroupEntries[0].offset = 0;
     bindGroupEntries[0].buffer = m_uniformBuffer;
     bindGroupEntries[0].size = sizeof(UniformData);
+
+    bindGroupEntries[1].binding = 1;
+    bindGroupEntries[1].offset = 0;
+    bindGroupEntries[1].textureView = m_albedoTextureView;
+    
+    bindGroupEntries[2].binding = 2;
+    bindGroupEntries[2].offset = 0;
+    bindGroupEntries[2].textureView = m_normalTextureView;
+
+    bindGroupEntries[3].binding = 3;
+    bindGroupEntries[3].offset = 0;
+    bindGroupEntries[3].sampler = m_textureSampler;
 
     BindGroupDescriptor bindGroupDesc;
     bindGroupDesc.entries = bindGroupEntries.data();
@@ -352,7 +435,7 @@ bool Renderer::initRenderPipeline() {
     std::cout << "initializing render pipeline" << std::endl;
     RenderPipelineDescriptor renderPipelineDesc;
 
-    std::vector<VertexAttribute> vertexAttributes(4);
+    std::vector<VertexAttribute> vertexAttributes(6);
     // position
     vertexAttributes[0].format = VertexFormat::Float32x3;
     vertexAttributes[0].offset = offsetof(VertexData, position);
@@ -365,10 +448,18 @@ bool Renderer::initRenderPipeline() {
     vertexAttributes[2].format = VertexFormat::Float32x3;
     vertexAttributes[2].offset = offsetof(VertexData, color);
     vertexAttributes[2].shaderLocation = 2;
-    // uv
-    vertexAttributes[3].format = VertexFormat::Float32x2;
-    vertexAttributes[3].offset = offsetof(VertexData, uv);
+    // tangent
+    vertexAttributes[3].format = VertexFormat::Float32x3;
+    vertexAttributes[3].offset = offsetof(VertexData, tangent);
     vertexAttributes[3].shaderLocation = 3;
+    // bitangent 
+    vertexAttributes[4].format = VertexFormat::Float32x3;
+    vertexAttributes[4].offset = offsetof(VertexData, bitangent);
+    vertexAttributes[4].shaderLocation = 4;
+    // uv
+    vertexAttributes[5].format = VertexFormat::Float32x2;
+    vertexAttributes[5].offset = offsetof(VertexData, uv);
+    vertexAttributes[5].shaderLocation = 5;
 
     VertexBufferLayout vertexBufferLayout;
     vertexBufferLayout.arrayStride = sizeof(VertexData);

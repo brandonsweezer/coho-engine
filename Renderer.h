@@ -30,6 +30,9 @@ private:
     bool initBuffers();
     void releaseBuffers();
 
+    bool initTextures();
+    void releaseTextures();
+
     bool initBindGroups();
     void releaseBindGroups();
 
@@ -103,6 +106,13 @@ private:
 
     wgpu::Buffer m_vertexBuffer = nullptr;
     int m_vertexCount = 0;
+
+    // textures
+    wgpu::Texture m_albedoTexture = nullptr;
+    wgpu::TextureView m_albedoTextureView = nullptr;
+    wgpu::Texture m_normalTexture = nullptr;
+    wgpu::TextureView m_normalTextureView = nullptr;
+    wgpu::Sampler m_textureSampler = nullptr;
 
     wgpu::Buffer m_uniformBuffer = nullptr;
 
