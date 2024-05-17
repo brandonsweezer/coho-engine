@@ -293,7 +293,6 @@ bool Renderer::initBuffers() {
         std::cerr << "failed to load obj file" << std::endl;
         return false;
     }
-    std::cout << model[0].tangent.x << ", " << model[0].tangent.y << ", " << model[0].tangent.z << std::endl;
 
     m_vertexCount = (uint32_t)model.size();
 
@@ -325,21 +324,8 @@ bool Renderer::initBuffers() {
 
 bool Renderer::initTextures() {
     std::cout << "loading textures" << std::endl;
-    m_albedoTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_albedo.jpg", m_device);
-    TextureViewDescriptor texViewDesc;
-    texViewDesc.arrayLayerCount = 1;
-    texViewDesc.baseArrayLayer = 0;
-    texViewDesc.aspect = TextureAspect::All;
-    texViewDesc.baseMipLevel = 0;
-    texViewDesc.mipLevelCount = 8;
-    texViewDesc.dimension = TextureViewDimension::_2D;
-    texViewDesc.format = TextureFormat::RGBA8Unorm;
-    texViewDesc.label = "albedoTextureView";
-    m_albedoTextureView = m_albedoTexture.createView(texViewDesc);
-
-    m_normalTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_normals.png", m_device);
-    texViewDesc.label = "normalTextureView";
-    m_normalTextureView = m_normalTexture.createView(texViewDesc);
+    m_albedoTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_albedo.jpg", m_device, m_albedoTextureView);
+    m_normalTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_normals.png", m_device, m_normalTextureView);
 
     SamplerDescriptor samplerDesc;
     samplerDesc.addressModeU = AddressMode::Repeat;

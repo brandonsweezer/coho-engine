@@ -83,7 +83,27 @@ static void writeMipMaps(
 	queue.release();
 }
 
-Texture ResourceLoader::loadTexture(const std::string& path, const std::string& filename, wgpu::Device device) {
+// overloaded loadTexture -> this one creates a textureView as well.
+Texture ResourceLoader::loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device, wgpu::TextureView& texture_view) {
+    Texture texture = loadTexture(path, filename, device);
+
+    std::cout << "texture view " << std::endl;
+    TextureViewDescriptor texViewDesc;
+    texViewDesc.arrayLayerCount = 1;
+    texViewDesc.baseArrayLayer = 0;
+    texViewDesc.aspect = TextureAspect::All;
+    texViewDesc.baseMipLevel = 0;
+    texViewDesc.mipLevelCount = 8;
+    texViewDesc.dimension = TextureViewDimension::_2D;
+    texViewDesc.format = TextureFormat::RGBA8Unorm;
+    texViewDesc.label = filename.c_str();
+    texture_view = texture.createView(texViewDesc);
+
+    return texture;
+}
+
+// overloaded load texture. this one doesn't create a texture view
+Texture ResourceLoader::loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device) {
     int width, height, channels;
     auto data = stbi_load(std::string(path + std::string("/") + filename).c_str(), &width, &height, &channels, 4);
     if (data == nullptr) {
