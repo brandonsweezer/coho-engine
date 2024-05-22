@@ -1,4 +1,5 @@
 #pragma once
+#include "ecs/Entity.h"
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.hpp>
 #include <sdl2webgpu/sdl2webgpu.h>
@@ -9,10 +10,15 @@ class Renderer
 {
 
 public:
+    struct ModelData {
+        glm::mat4x4 transform;
+    };
+
     bool init();
     bool isRunning();
-    void onFrame();
+    void onFrame(std::vector<std::shared_ptr<Entity>> entities);
     void terminate();
+    void writeModelBuffer(std::vector<ModelData> modelData, int offset);
 
 private:
     bool initWindowAndSurface();
@@ -106,6 +112,8 @@ private:
 
     wgpu::Buffer m_vertexBuffer = nullptr;
     int m_vertexCount = 0;
+
+    wgpu::Buffer m_modelBuffer = nullptr;
 
     // textures
     wgpu::Texture m_albedoTexture = nullptr;

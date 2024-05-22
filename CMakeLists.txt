@@ -10,9 +10,11 @@ add_subdirectory(sdl2webgpu)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
 file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE HEADER_FILES ${PROJECT_SOURCE_DIR}/src/*.h)
 
 add_executable(Renderer
     ${SRC_FILES}
+    ${HEADER_FILES}
 )
 
 target_include_directories(Renderer PRIVATE .)

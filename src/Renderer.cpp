@@ -1,5 +1,7 @@
 #include "Renderer.h"
 #include "ResourceLoader.h"
+#include "ecs/Entity.h"
+#include "ecs/components/TransformComponent.h"
 
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
@@ -15,7 +17,15 @@ using VertexData = ResourceLoader::VertexData;
 
 const float PI = 3.14159265358979323846f;
 
-void Renderer::onFrame() {
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
+
+void Renderer::writeModelBuffer(std::vector<ModelData> modelData, int offset = 0) {
+    std::cout << "writing model buffer" << std::endl;
+    m_queue.writeBuffer(m_modelBuffer, offset, modelData.data(), modelData.size() * sizeof(ModelData));
+}
+
+void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities) {
     handleInput();
 
     m_uniformData.time = SDL_GetTicks64() / 1000.0f;
@@ -54,23 +64,25 @@ void Renderer::onFrame() {
     renderPassDesc.timestampWriteCount = 0;
     renderPassDesc.timestampWrites = nullptr;
 
-
     CommandEncoder commandEncoder = m_device.createCommandEncoder(CommandEncoderDescriptor{});
     RenderPassEncoder renderPassEncoder = commandEncoder.beginRenderPass(renderPassDesc);
     renderPassEncoder.setPipeline(m_renderPipeline);
     renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
     renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
-    renderPassEncoder.draw(m_vertexCount, 1, 0, 0);
+    
+    for (int i = 0; i < entities.size(); ++i) {
+        int offset = i * (m_vertexCount / (uint32_t)entities.size());
+        renderPassEncoder.draw(m_vertexCount / ((uint32_t)entities.size()), 1, offset, 0);
+    }
 
     renderPassEncoder.end();
     CommandBuffer commandBuffer = commandEncoder.finish(CommandBufferDescriptor{});
     m_queue.submit(commandBuffer);
+    commandBuffer.release();
+    renderPassEncoder.release();
+    commandEncoder.release();
     
     m_swapChain.present();
-
-    renderPassEncoder.release();
-    commandBuffer.release();
-    commandEncoder.release();
     currentTextureView.release();
 
     SDL_Event e;
@@ -191,6 +203,9 @@ void Renderer::releaseBuffers() {
     m_uniformBuffer.destroy();
     m_uniformBuffer.release();
 
+    m_modelBuffer.destroy();
+    m_modelBuffer.release();
+
 }
 
 void Renderer::releaseShaderModule() {
@@ -243,16 +258,18 @@ bool Renderer::initDevice() {
 
     std::cout << "initializing device" << std::endl;
     RequiredLimits requiredLimits;
-    requiredLimits.limits.minStorageBufferOffsetAlignment = 32;
+    requiredLimits.limits.minStorageBufferOffsetAlignment = 64;
     requiredLimits.limits.minUniformBufferOffsetAlignment = 64;
     requiredLimits.limits.maxUniformBufferBindingSize = sizeof(UniformData);
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
     requiredLimits.limits.maxBindGroups = 1;
     requiredLimits.limits.maxVertexBuffers = 1;
-    requiredLimits.limits.maxVertexAttributes = 6;
-    requiredLimits.limits.maxBufferSize = 150000 * sizeof(VertexData);
+    requiredLimits.limits.maxVertexAttributes = 7;
+    requiredLimits.limits.maxBufferSize = 1500000 * sizeof(VertexData);
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
     requiredLimits.limits.maxInterStageShaderComponents = 17;
+    requiredLimits.limits.maxStorageBuffersPerShaderStage = 1;
+    requiredLimits.limits.maxStorageBufferBindingSize = 1000000 * sizeof(ModelData); // 1 million objects
 
     requiredLimits.limits.maxTextureDimension1D = 1440;
     requiredLimits.limits.maxTextureDimension2D = 5120;
@@ -262,8 +279,8 @@ bool Renderer::initDevice() {
 
     DeviceDescriptor deviceDesc;
     deviceDesc.defaultQueue = QueueDescriptor{};
-    deviceDesc.requiredFeaturesCount = 0;
-    deviceDesc.requiredFeatures = nullptr;
+    deviceDesc.requiredFeaturesCount = 1;
+    deviceDesc.requiredFeatures = (WGPUFeatureName*)&NativeFeature::VertexWritableStorage;
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const * message, void * userdata) {
         std::cout << "Device lost! Reason: " << reason << userdata << "(\n" << message << "\n)" << std::endl;
@@ -283,27 +300,41 @@ bool Renderer::initDevice() {
 
     return true;
 }
+// todo
+// bool Renderer::addModelToVertexBuffer() {
+
+// }
 
 bool Renderer::initBuffers() {
     std::cout << "initializing buffers" << std::endl;
 
     std::vector<VertexData> model;
-    bool success = ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", model);
-    if (!success) {
+    bool success1 = ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", model, 0u);
+    std::vector<VertexData> model2;
+    bool success2 = ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", model2, 1u);
+    if (!success1 || !success2) {
         std::cerr << "failed to load obj file" << std::endl;
         return false;
     }
 
-    m_vertexCount = (uint32_t)model.size();
+    model.insert( model.end(), model2.begin(), model2.end() );
+
+    m_vertexCount = (uint32_t)(model.size());
 
     BufferDescriptor bufferDesc;
     bufferDesc.label = "vertex buffer";
     bufferDesc.usage = BufferUsage::Vertex | BufferUsage::CopyDst;
-    bufferDesc.size = model.size() * sizeof(VertexData);
+    bufferDesc.size = m_vertexCount * sizeof(VertexData);
 
     m_vertexBuffer = m_device.createBuffer(bufferDesc);
 
-    m_queue.writeBuffer(m_vertexBuffer, 0, model.data(), bufferDesc.size);
+    m_queue.writeBuffer(m_vertexBuffer, 0, model.data(), model.size() * sizeof(VertexData));
+
+
+    bufferDesc.label = "model matrix buffer";
+    bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
+    bufferDesc.size = 2 * sizeof(ModelData);
+    m_modelBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "uniform buffer";
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
@@ -357,7 +388,7 @@ void Renderer::releaseTextures() {
 
 bool Renderer::initBindGroups() {
     std::cout << "initializing bind groups" << std::endl;
-    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(4, Default);
+    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(5, Default);
     // uniform layout
     bindGroupLayoutEntries[0].binding = 0;
     bindGroupLayoutEntries[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
@@ -383,13 +414,19 @@ bool Renderer::initBindGroups() {
     bindGroupLayoutEntries[3].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     bindGroupLayoutEntries[3].sampler.type = SamplerBindingType::Filtering;
 
+    // model buffer layout
+    bindGroupLayoutEntries[4].binding = 4;
+    bindGroupLayoutEntries[4].visibility = ShaderStage::Vertex;
+    bindGroupLayoutEntries[4].buffer.type = BufferBindingType::ReadOnlyStorage;
+    bindGroupLayoutEntries[4].buffer.minBindingSize = sizeof(ModelData);
+
     BindGroupLayoutDescriptor bindGroupLayoutDesc;
     bindGroupLayoutDesc.entries = bindGroupLayoutEntries.data();
     bindGroupLayoutDesc.entryCount = (uint32_t)bindGroupLayoutEntries.size();
 
     m_bindGroupLayout = m_device.createBindGroupLayout(bindGroupLayoutDesc);
 
-    std::vector<BindGroupEntry> bindGroupEntries(4, Default);
+    std::vector<BindGroupEntry> bindGroupEntries(5, Default);
     bindGroupEntries[0].binding = 0;
     bindGroupEntries[0].offset = 0;
     bindGroupEntries[0].buffer = m_uniformBuffer;
@@ -407,6 +444,11 @@ bool Renderer::initBindGroups() {
     bindGroupEntries[3].offset = 0;
     bindGroupEntries[3].sampler = m_textureSampler;
 
+    bindGroupEntries[4].binding = 4;
+    bindGroupEntries[4].offset = 0;
+    bindGroupEntries[4].buffer = m_modelBuffer;
+    bindGroupEntries[4].size = 2 * sizeof(ModelData);
+
     BindGroupDescriptor bindGroupDesc;
     bindGroupDesc.entries = bindGroupEntries.data();
     bindGroupDesc.entryCount = (uint32_t)bindGroupEntries.size();
@@ -421,7 +463,7 @@ bool Renderer::initRenderPipeline() {
     std::cout << "initializing render pipeline" << std::endl;
     RenderPipelineDescriptor renderPipelineDesc;
 
-    std::vector<VertexAttribute> vertexAttributes(6);
+    std::vector<VertexAttribute> vertexAttributes(7);
     // position
     vertexAttributes[0].format = VertexFormat::Float32x3;
     vertexAttributes[0].offset = offsetof(VertexData, position);
@@ -446,6 +488,10 @@ bool Renderer::initRenderPipeline() {
     vertexAttributes[5].format = VertexFormat::Float32x2;
     vertexAttributes[5].offset = offsetof(VertexData, uv);
     vertexAttributes[5].shaderLocation = 5;
+    // modelId
+    vertexAttributes[6].format = VertexFormat::Uint32;
+    vertexAttributes[6].offset = offsetof(VertexData, modelID);
+    vertexAttributes[6].shaderLocation = 6;
 
     VertexBufferLayout vertexBufferLayout;
     vertexBufferLayout.arrayStride = sizeof(VertexData);
@@ -500,6 +546,7 @@ bool Renderer::initRenderPipeline() {
     renderPipelineDesc.multisample.count = 1;
     renderPipelineDesc.multisample.mask = ~0u;
 	renderPipelineDesc.multisample.alphaToCoverageEnabled = false;
+
     
     PipelineLayoutDescriptor pipelineLayoutDesc;
     pipelineLayoutDesc.bindGroupLayoutCount = 1;
@@ -568,6 +615,7 @@ bool Renderer::initDepthBuffer() {
     depthTextureViewDesc.dimension = TextureViewDimension::_2D;
     depthTextureViewDesc.format = m_depthTextureFormat;
 
+    std::cout << "creating depth texture view" << std::endl;
     m_depthTextureView = m_depthTexture.createView(depthTextureViewDesc);
     
     return true;

@@ -177,7 +177,7 @@ bool ResourceLoader::loadGLTF(const std::string& path, const std::string& filena
     return true;
 }
 
-bool ResourceLoader::loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData) {
+bool ResourceLoader::loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData, uint32_t modelId) {
     std::cout << "loading .obj file: " << filename << "from " << path << std::endl;
 
     tinyobj::ObjReaderConfig reader_config;
@@ -228,6 +228,7 @@ bool ResourceLoader::loadObj(const std::string& path, const std::string& filenam
                 attrib.texcoords[2 * it.texcoord_index + 0],
                 1 - attrib.texcoords[2 * it.texcoord_index + 1],
             };
+            vertexData[offset + i].modelID = modelId;
         }
         
     }

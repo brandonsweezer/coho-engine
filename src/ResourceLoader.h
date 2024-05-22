@@ -16,6 +16,7 @@ public:
         glm::vec3 tangent;
         glm::vec3 bitangent;
         glm::vec2 uv;
+        uint32_t modelID;
     };
 
     static std::string loadShaderCode(std::string path);
@@ -23,7 +24,7 @@ public:
     static wgpu::Texture loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device, wgpu::TextureView& texture_view);
     static wgpu::Texture loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device);
 
-    static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
+    static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData, uint32_t modelId);
     
     bool loadGLTF(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
 

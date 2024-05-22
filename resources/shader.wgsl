@@ -6,10 +6,15 @@ struct UniformData {
     time: f32
 };
 
+struct ModelData {
+    transform: mat4x4f,
+}
+
 @group(0) @binding(0) var<uniform> uUniformData: UniformData;
 @group(0) @binding(1) var albedo_texture: texture_2d<f32>;
 @group(0) @binding(2) var normal_texture: texture_2d<f32>;
 @group(0) @binding(3) var texture_sampler: sampler;
+@group(0) @binding(4) var<storage, read> modelBuffer: array<ModelData>;
 
 struct VertexInput {
     @location(0) position: vec3f,
@@ -18,6 +23,7 @@ struct VertexInput {
     @location(3) tangent: vec3f,
     @location(4) bitangent: vec3f,
     @location(5) uv: vec2f,
+    @location(6) modelId: u32,
 }
 
 struct VertexOutput {
@@ -33,7 +39,10 @@ struct VertexOutput {
 @vertex
 fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32 ) -> VertexOutput {
     var out: VertexOutput;
-    let worldPosition = uUniformData.model_matrix * vec4f(in.position, 1.0);
+    let model_matrix = modelBuffer[in.modelId].transform;
+    
+    // let worldPosition = model_matrix * vec4f(in.position, 1.0);
+    let worldPosition = model_matrix * vec4f(in.position.x, in.position.y, in.position.z - f32(in.modelId), 1.0);
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
     
     out.tangent = (uUniformData.model_matrix * vec4f(in.tangent, 0.0)).xyz;
