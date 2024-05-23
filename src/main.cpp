@@ -26,14 +26,20 @@ int main() {
     std::vector<VertexData> vd;
     ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", vd); // this sucks doing 10 times, it's the next thing to go!
     std::cout << "initializing models" << std::endl;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 64; ++i) {
         std::shared_ptr<Entity> boat = std::make_shared<Entity>();
         
         boat->addComponent<MeshComponent>();
         boat->getComponent<MeshComponent>()->mesh->setVertexData(vd);
         boat->addComponent<TransformComponent>();
+
+        float ypos = i / 16;
+        float xpos = i % 4;
+        float zpos = (i / 4) % 4;
+        glm::vec3 pos(xpos, ypos, zpos);
+        pos = pos * glm::vec3(2.0) - glm::vec3(4.0);
         boat->getComponent<TransformComponent>()->transform->setPosition(
-            glm::vec3(0.0, (float)i*2 - 10.0, 0.0)
+            pos
         );
         entityManager.addEntity(boat);
 

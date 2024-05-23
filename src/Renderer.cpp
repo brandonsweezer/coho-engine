@@ -267,7 +267,7 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxBindGroups = 1;
     requiredLimits.limits.maxVertexBuffers = 1;
     requiredLimits.limits.maxVertexAttributes = 7;
-    requiredLimits.limits.maxBufferSize = 10000000 * sizeof(VertexData); // 10,000,000 verts
+    requiredLimits.limits.maxBufferSize = 50000000 * sizeof(VertexData); // 50,000,000 verts
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
     requiredLimits.limits.maxInterStageShaderComponents = 17;
     requiredLimits.limits.maxStorageBuffersPerShaderStage = 1;
@@ -324,12 +324,12 @@ bool Renderer::initBuffers() {
     BufferDescriptor bufferDesc;
     bufferDesc.label = "vertex buffer";
     bufferDesc.usage = BufferUsage::Vertex | BufferUsage::CopyDst;
-    bufferDesc.size = 10000000 * sizeof(VertexData); // 10,000,000 vertices
+    bufferDesc.size = 50000000 * sizeof(VertexData); // 50,000,000 vertices
     m_vertexBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "model matrix buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
-    bufferDesc.size = 10 * sizeof(ModelData);
+    bufferDesc.size = 100 * sizeof(ModelData);
     m_modelBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "uniform buffer";
@@ -443,7 +443,7 @@ bool Renderer::initBindGroups() {
     bindGroupEntries[4].binding = 4;
     bindGroupEntries[4].offset = 0;
     bindGroupEntries[4].buffer = m_modelBuffer;
-    bindGroupEntries[4].size = 10 * sizeof(ModelData);
+    bindGroupEntries[4].size = 100 * sizeof(ModelData);
 
     BindGroupDescriptor bindGroupDesc;
     bindGroupDesc.entries = bindGroupEntries.data();
@@ -459,7 +459,7 @@ bool Renderer::initRenderPipeline() {
     std::cout << "initializing render pipeline" << std::endl;
     RenderPipelineDescriptor renderPipelineDesc;
 
-    std::vector<VertexAttribute> vertexAttributes(7);
+    std::vector<VertexAttribute> vertexAttributes(6);
     // position
     vertexAttributes[0].format = VertexFormat::Float32x3;
     vertexAttributes[0].offset = offsetof(VertexData, position);
@@ -484,10 +484,6 @@ bool Renderer::initRenderPipeline() {
     vertexAttributes[5].format = VertexFormat::Float32x2;
     vertexAttributes[5].offset = offsetof(VertexData, uv);
     vertexAttributes[5].shaderLocation = 5;
-    // modelId
-    vertexAttributes[6].format = VertexFormat::Uint32;
-    vertexAttributes[6].offset = offsetof(VertexData, modelID);
-    vertexAttributes[6].shaderLocation = 6;
 
     VertexBufferLayout vertexBufferLayout;
     vertexBufferLayout.arrayStride = sizeof(VertexData);

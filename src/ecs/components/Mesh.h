@@ -11,7 +11,6 @@ public:
         glm::vec3 tangent;
         glm::vec3 bitangent;
         glm::vec2 uv;
-        uint32_t modelID;
     };
 
     std::vector<VertexData> getVertexData() { return m_vertexData; };

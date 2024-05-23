@@ -23,7 +23,6 @@ struct VertexInput {
     @location(3) tangent: vec3f,
     @location(4) bitangent: vec3f,
     @location(5) uv: vec2f,
-    @location(6) modelId: u32,
 }
 
 struct VertexOutput {
@@ -68,8 +67,9 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let albedo = textureSample(albedo_texture, texture_sampler, in.uv).rgb;
 
     var lightPositions = array(
-        vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
-        vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
+        vec3f(5.0, 2.0, 5.0),
+        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
+        // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
     );
     let V = normalize(in.viewDirection);
 
