@@ -1,6 +1,5 @@
 #pragma once
 #include "TransformComponent.h"
-#include "Transform.h"
 #include <memory>
 
 TransformComponent::TransformComponent() {

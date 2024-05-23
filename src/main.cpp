@@ -1,7 +1,10 @@
 #include "Renderer.h"
+#include "ResourceLoader.h"
 #include "ecs/EntityManager.h"
 #include "ecs/Entity.h"
 #include "ecs/components/TransformComponent.h"
+#include "ecs/components/MeshComponent.h"
+#include "ecs/components/Mesh.h"
 #include <iostream>
 #include <memory>
 
@@ -13,36 +16,35 @@
 #include <glm/gtx/string_cast.hpp>
 
 int main() {
-    Renderer renderer;
-    if (!renderer.init()) {
+    std::shared_ptr<Renderer> renderer = std::make_shared<Renderer>();
+    if (!renderer->init()) {
         std::cerr << "Could not initialize renderer" << std::endl;
         exit(-1);
     }
 
-    EntityManager entityManager;
-    std::shared_ptr<Entity> boat1 = std::make_shared<Entity>();
-    std::shared_ptr<Entity> boat2 = std::make_shared<Entity>();
-    boat1->addComponent<TransformComponent>();
-    boat1->getComponent<TransformComponent>()->transform->setPosition(glm::vec3(0.0, 2.0, 0.0));
-    boat2->addComponent<TransformComponent>();
-    boat2->getComponent<TransformComponent>()->transform->setPosition(glm::vec3(0.0, -2.0, 0.0));
+    EntityManager entityManager(renderer);
+    std::vector<VertexData> vd;
 
-    entityManager.addEntity(boat1);
-    entityManager.addEntity(boat2);
+    std::cout << "initializing models" << std::endl;
+    for (int i = 0; i < 10; ++i) {
+        ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", vd, i); // this sucks doing 10 times, it's the next thing to go!
+        std::shared_ptr<Entity> boat = std::make_shared<Entity>();
+        
+        boat->addComponent<MeshComponent>();
+        boat->getComponent<MeshComponent>()->mesh->setVertexData(vd);
+        boat->addComponent<TransformComponent>();
+        boat->getComponent<TransformComponent>()->transform->setPosition(
+            glm::vec3(0.0, (float)i*2 - 10.0, 0.0)
+        );
+        entityManager.addEntity(boat);
+
+    }
     std::vector<std::shared_ptr<Entity>> entities = entityManager.getAllEntities();
-    std::vector<Renderer::ModelData> modelData;
-    for (auto entity: entities) {
-        glm::mat4x4 transform = entity->getComponent<TransformComponent>()->transform->getMatrix();
-        Renderer::ModelData model;
-        model.transform = transform;
-        modelData.push_back(model);
-    }
-    renderer.writeModelBuffer(modelData, 0);
-
-    while (renderer.isRunning()) {
-        renderer.onFrame(entities);
+    std::cout << "begin rendering" << std::endl;
+    while (renderer->isRunning()) {
+        renderer->onFrame(entities);
     }
 
-    renderer.terminate();
+    renderer->terminate();
     return 1;
 }

@@ -1,10 +1,13 @@
 #pragma once
 #include "ecs/Entity.h"
+#include "ecs/components/Mesh.h"
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.hpp>
 #include <sdl2webgpu/sdl2webgpu.h>
 #include <glm/glm.hpp>
 #include <vector>
+
+
 
 class Renderer
 {
@@ -19,6 +22,7 @@ public:
     void onFrame(std::vector<std::shared_ptr<Entity>> entities);
     void terminate();
     void writeModelBuffer(std::vector<ModelData> modelData, int offset);
+    int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
 
 private:
     bool initWindowAndSurface();

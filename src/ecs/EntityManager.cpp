@@ -1,14 +1,20 @@
 #pragma once
+#include "Renderer.h"
 #include "EntityManager.h"
 #include "components/Components.h"
+#include "components/TransformComponent.h"
+#include "components/MeshComponent.h"
+#include "components/Mesh.h"
 #include <memory>
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
-EntityManager::EntityManager() {
-    // Constructor implementation
+EntityManager::EntityManager(std::shared_ptr<Renderer> renderer) {
+    m_renderer = renderer;
 }
 
 EntityManager::~EntityManager() {
-    // Destructor implementation
+    m_renderer.reset();
 }
 
 int EntityManager::addEntity(std::shared_ptr<Entity> entity) {
@@ -16,6 +22,21 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity) {
     m_entities[m_nextId] = entity;
     entity->setId(m_nextId);
     m_nextId = m_nextId + 1;
+
+    std::cout << "getting transform" << std::endl;
+    glm::mat4x4 transform = entity->getComponent<TransformComponent>()->transform->getMatrix();
+    Renderer::ModelData modelData;
+    modelData.transform = transform;
+    std::cout << "making list of transforms in from of modeldata" << std::endl;
+    std::vector<Renderer::ModelData> mds = { modelData };
+    std::cout << "writing model buffer" << std::endl;
+    m_renderer->writeModelBuffer(mds, sizeof(Renderer::ModelData) * id);
+
+    std::shared_ptr<Mesh> mesh = entity->getComponent<MeshComponent>()->mesh;
+    std::vector<Mesh::VertexData> vds = mesh->getVertexData();
+    std::cout << "adding mesh to vertex buffer" << std::endl;
+    int vertexBufferOffset = m_renderer->addMeshToVertexBuffer(vds);
+    mesh->setVertexBufferOffset(vertexBufferOffset);
 
     return id;
 }

@@ -1,23 +1,17 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <webgpu/webgpu.hpp>
+#include "ecs/components/Mesh.h"
 
 #include <string>
 #include <vector>
 using vec3 = glm::vec3;
 using vec2 = glm::vec2;
+using VertexData = Mesh::VertexData;
 
 class ResourceLoader {
 public:
-    struct VertexData {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec3 color;
-        glm::vec3 tangent;
-        glm::vec3 bitangent;
-        glm::vec2 uv;
-        uint32_t modelID;
-    };
+    
 
     static std::string loadShaderCode(std::string path);
     

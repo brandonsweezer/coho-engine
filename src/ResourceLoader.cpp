@@ -4,6 +4,8 @@
 #include "stb_image.h"
 #include <webgpu/webgpu.hpp>
 
+#include "ecs/components/Mesh.h"
+
 #include <iostream>
 #include <string>
 #include <fstream>

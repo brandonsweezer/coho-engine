@@ -2,6 +2,8 @@
 #include "ResourceLoader.h"
 #include "ecs/Entity.h"
 #include "ecs/components/TransformComponent.h"
+#include "ecs/components/MeshComponent.h"
+#include "ecs/components/Mesh.h"
 
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
@@ -13,7 +15,7 @@ using namespace wgpu;
 using vec3 = glm::vec3;
 using vec2 = glm::vec2;
 using mat4x4 = glm::mat4x4;
-using VertexData = ResourceLoader::VertexData;
+using VertexData = Mesh::VertexData;
 
 const float PI = 3.14159265358979323846f;
 
@@ -70,9 +72,9 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities) {
     renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
     renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
     
-    for (int i = 0; i < entities.size(); ++i) {
-        int offset = i * (m_vertexCount / (uint32_t)entities.size());
-        renderPassEncoder.draw(m_vertexCount / ((uint32_t)entities.size()), 1, offset, 0);
+    for (auto entity: entities) {
+        auto mesh = entity->getComponent<MeshComponent>()->mesh;
+        renderPassEncoder.draw(mesh->getVertexCount(), 1, mesh->getVertexBufferOffset(), 0);
     }
 
     renderPassEncoder.end();
@@ -265,7 +267,7 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxBindGroups = 1;
     requiredLimits.limits.maxVertexBuffers = 1;
     requiredLimits.limits.maxVertexAttributes = 7;
-    requiredLimits.limits.maxBufferSize = 1500000 * sizeof(VertexData);
+    requiredLimits.limits.maxBufferSize = 10000000 * sizeof(VertexData); // 10,000,000 verts
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
     requiredLimits.limits.maxInterStageShaderComponents = 17;
     requiredLimits.limits.maxStorageBuffersPerShaderStage = 1;
@@ -305,35 +307,29 @@ bool Renderer::initDevice() {
 
 // }
 
+// returns the vertex offset of this mesh in the vertex buffer.
+int Renderer::addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData) {
+    std::cout << "adding mesh to vertex buffer" << std::endl;
+    int vertexOffset = m_vertexCount;
+    int offset = m_vertexCount * sizeof(VertexData);
+    int newDataSize = (int)(vertexData.size() * sizeof(VertexData));
+    m_queue.writeBuffer(m_vertexBuffer, offset, vertexData.data(), newDataSize);
+    m_vertexCount = (int)(m_vertexCount + vertexData.size());
+    return vertexOffset;
+}
+
 bool Renderer::initBuffers() {
     std::cout << "initializing buffers" << std::endl;
-
-    std::vector<VertexData> model;
-    bool success1 = ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", model, 0u);
-    std::vector<VertexData> model2;
-    bool success2 = ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", model2, 1u);
-    if (!success1 || !success2) {
-        std::cerr << "failed to load obj file" << std::endl;
-        return false;
-    }
-
-    model.insert( model.end(), model2.begin(), model2.end() );
-
-    m_vertexCount = (uint32_t)(model.size());
 
     BufferDescriptor bufferDesc;
     bufferDesc.label = "vertex buffer";
     bufferDesc.usage = BufferUsage::Vertex | BufferUsage::CopyDst;
-    bufferDesc.size = m_vertexCount * sizeof(VertexData);
-
+    bufferDesc.size = 10000000 * sizeof(VertexData); // 10,000,000 vertices
     m_vertexBuffer = m_device.createBuffer(bufferDesc);
-
-    m_queue.writeBuffer(m_vertexBuffer, 0, model.data(), model.size() * sizeof(VertexData));
-
 
     bufferDesc.label = "model matrix buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
-    bufferDesc.size = 2 * sizeof(ModelData);
+    bufferDesc.size = 10 * sizeof(ModelData);
     m_modelBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "uniform buffer";
@@ -447,7 +443,7 @@ bool Renderer::initBindGroups() {
     bindGroupEntries[4].binding = 4;
     bindGroupEntries[4].offset = 0;
     bindGroupEntries[4].buffer = m_modelBuffer;
-    bindGroupEntries[4].size = 2 * sizeof(ModelData);
+    bindGroupEntries[4].size = 10 * sizeof(ModelData);
 
     BindGroupDescriptor bindGroupDesc;
     bindGroupDesc.entries = bindGroupEntries.data();

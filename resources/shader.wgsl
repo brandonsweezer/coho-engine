@@ -40,9 +40,7 @@ struct VertexOutput {
 fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32 ) -> VertexOutput {
     var out: VertexOutput;
     let model_matrix = modelBuffer[in.modelId].transform;
-    
-    // let worldPosition = model_matrix * vec4f(in.position, 1.0);
-    let worldPosition = model_matrix * vec4f(in.position.x, in.position.y, in.position.z - f32(in.modelId), 1.0);
+    let worldPosition = model_matrix * vec4f(in.position, 1.0);
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
     
     out.tangent = (uUniformData.model_matrix * vec4f(in.tangent, 0.0)).xyz;
