@@ -37,9 +37,9 @@ struct VertexOutput {
 }
 
 @vertex
-fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32 ) -> VertexOutput {
+fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_index) instance_id: u32 ) -> VertexOutput {
     var out: VertexOutput;
-    let model_matrix = modelBuffer[in.modelId].transform;
+    let model_matrix = modelBuffer[instance_id].transform;
     let worldPosition = model_matrix * vec4f(in.position, 1.0);
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
     

@@ -18,7 +18,7 @@ public:
     static wgpu::Texture loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device, wgpu::TextureView& texture_view);
     static wgpu::Texture loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device);
 
-    static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData, uint32_t modelId);
+    static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
     
     bool loadGLTF(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
 

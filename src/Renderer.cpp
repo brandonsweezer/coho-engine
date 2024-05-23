@@ -74,7 +74,9 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities) {
     
     for (auto entity: entities) {
         auto mesh = entity->getComponent<MeshComponent>()->mesh;
-        renderPassEncoder.draw(mesh->getVertexCount(), 1, mesh->getVertexBufferOffset(), 0);
+        if (entity->getId() % 2 == 0) {
+            renderPassEncoder.draw(mesh->getVertexCount(), 1, mesh->getVertexBufferOffset(), entity->getId());
+        }
     }
 
     renderPassEncoder.end();
