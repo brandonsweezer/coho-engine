@@ -132,6 +132,7 @@ private:
 
     wgpu::Texture m_depthTexture = nullptr;
     wgpu::TextureView m_depthTextureView = nullptr;
+    wgpu::Sampler m_depthSampler = nullptr;
 
     std::vector<bool> m_keys;
 };

@@ -14,6 +14,11 @@ public:
 
 private:
     std::shared_ptr<Renderer> m_renderer;
-    std::unordered_map<int, std::shared_ptr<Entity>> m_entities;
+    std::vector<std::shared_ptr<Entity>> m_entities;
+
+    std::unordered_map<int, std::vector<std::shared_ptr<Entity>>> m_instances;
     int m_nextId = 0;
+
+    int m_nextModelBufferOffset = 0;
+
 };

@@ -2,6 +2,7 @@
 #include "ResourceLoader.h"
 #include "ecs/Entity.h"
 #include "ecs/components/TransformComponent.h"
+#include "ecs/components/InstanceComponent.h"
 #include "ecs/components/MeshComponent.h"
 #include "ecs/components/Mesh.h"
 
@@ -71,9 +72,13 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities) {
     renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
     renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
     
-    for (auto entity: entities) {
-        auto mesh = entity->getComponent<MeshComponent>()->mesh;
-        renderPassEncoder.draw(mesh->getVertexCount(), 1, mesh->getVertexBufferOffset(), entity->getId());
+    for (auto entity : entities) {
+        if (entity->hasComponent<InstanceComponent>()) {
+            // skip it, just used to track transforms
+        } else {
+            auto mesh = entity->getComponent<MeshComponent>()->mesh;
+            renderPassEncoder.draw(mesh->getVertexCount(), entity->instanceCount, mesh->getVertexBufferOffset(), entity->getId());
+        }
     }
 
     renderPassEncoder.end();
@@ -266,7 +271,7 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxBindGroups = 1;
     requiredLimits.limits.maxVertexBuffers = 1;
     requiredLimits.limits.maxVertexAttributes = 7;
-    requiredLimits.limits.maxBufferSize = 50000000 * sizeof(VertexData); // 50,000,000 verts
+    requiredLimits.limits.maxBufferSize = 1000000 * sizeof(VertexData); // 1,000,000 verts
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
     requiredLimits.limits.maxInterStageShaderComponents = 17;
     requiredLimits.limits.maxStorageBuffersPerShaderStage = 1;
@@ -301,10 +306,6 @@ bool Renderer::initDevice() {
 
     return true;
 }
-// todo
-// bool Renderer::addModelToVertexBuffer() {
-
-// }
 
 // returns the vertex offset of this mesh in the vertex buffer.
 int Renderer::addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData) {
@@ -322,12 +323,12 @@ bool Renderer::initBuffers() {
     BufferDescriptor bufferDesc;
     bufferDesc.label = "vertex buffer";
     bufferDesc.usage = BufferUsage::Vertex | BufferUsage::CopyDst;
-    bufferDesc.size = 50000000 * sizeof(VertexData); // 50,000,000 vertices
+    bufferDesc.size = 1000000 * sizeof(VertexData); // 1,000,000 vertices
     m_vertexBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "model matrix buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
-    bufferDesc.size = 100 * sizeof(ModelData);
+    bufferDesc.size = 1000000 * sizeof(ModelData); // 1,000,000 instances
     m_modelBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "uniform buffer";
@@ -337,7 +338,7 @@ bool Renderer::initBuffers() {
 
     m_uniformData.time = 1.0;
     float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
-    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 100.0f);
+    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 1000.0f);
 
     m_uniformData.model_matrix = mat4x4(1.0);
 
@@ -453,7 +454,7 @@ bool Renderer::initBindGroups() {
     bindGroupEntries[4].binding = 4;
     bindGroupEntries[4].offset = 0;
     bindGroupEntries[4].buffer = m_modelBuffer;
-    bindGroupEntries[4].size = 100 * sizeof(ModelData);
+    bindGroupEntries[4].size = 1000000 * sizeof(ModelData); // 1,000,000 instances
 
     bindGroupEntries[5].binding = 5;
     bindGroupEntries[5].offset = 0;
@@ -623,6 +624,19 @@ bool Renderer::initDepthBuffer() {
 
     std::cout << "creating depth texture view" << std::endl;
     m_depthTextureView = m_depthTexture.createView(depthTextureViewDesc);
+
+    SamplerDescriptor samplerDesc;
+    samplerDesc.addressModeU = AddressMode::ClampToEdge;
+    samplerDesc.addressModeV = AddressMode::ClampToEdge;
+    samplerDesc.addressModeW = AddressMode::ClampToEdge;
+    samplerDesc.magFilter = FilterMode::Linear;
+    samplerDesc.minFilter = FilterMode::Linear;
+    samplerDesc.mipmapFilter = MipmapFilterMode::Nearest;
+    samplerDesc.lodMaxClamp = 10.0;
+    samplerDesc.lodMinClamp = 0.0;
+    samplerDesc.maxAnisotropy = 1;
+    samplerDesc.compare = CompareFunction::LessEqual;
+    m_depthSampler = m_device.createSampler(samplerDesc);
     
     return true;
 }

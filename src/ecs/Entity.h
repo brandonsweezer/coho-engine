@@ -24,6 +24,8 @@ public:
     template <typename T>
     bool hasComponent();
 
+    int instanceCount;
+
     int getId();
     void setId(int id);
 };

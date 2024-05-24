@@ -91,16 +91,16 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let environment = textureSample(environment_texture, texture_sampler, environmentUvs).rgb;
 
     let kh = 80.0;
-    let kd = 1.0;
-    let ks = 0.5;
-    let ka = 0.0;
+    let kd = 0.0;
+    let ks = 0.0;
+    let ka = 1.0;
 
     var color = vec3f(0.0);
     for (var i: i32 = 0; i < 2; i++) {
         var L = normalize(lightPositions[i].xyz);
         let H = normalize(L + V);
 
-        let ambient = in.color;
+        let ambient = environment;
         let diffuse = max(0.0, dot(N, L)) * vec3f(1.0) * albedo;
         let specular = max(0.0, pow(dot(N, H), kh)) * environment;
         color += (kd * diffuse) + (ks * specular) + (ka * ambient);
