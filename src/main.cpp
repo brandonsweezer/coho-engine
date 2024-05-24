@@ -24,7 +24,7 @@ int main() {
 
     EntityManager entityManager(renderer);
     std::vector<VertexData> vd;
-    ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", vd); // this sucks doing 10 times, it's the next thing to go!
+    ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", vd);
     std::cout << "initializing models" << std::endl;
     for (int i = 0; i < 64; ++i) {
         std::shared_ptr<Entity> boat = std::make_shared<Entity>();

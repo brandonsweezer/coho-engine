@@ -124,6 +124,8 @@ private:
     wgpu::TextureView m_albedoTextureView = nullptr;
     wgpu::Texture m_normalTexture = nullptr;
     wgpu::TextureView m_normalTextureView = nullptr;
+    wgpu::Texture m_environmentTexture = nullptr;
+    wgpu::TextureView m_environmentTextureView = nullptr;
     wgpu::Sampler m_textureSampler = nullptr;
 
     wgpu::Buffer m_uniformBuffer = nullptr;

@@ -15,6 +15,7 @@ struct ModelData {
 @group(0) @binding(2) var normal_texture: texture_2d<f32>;
 @group(0) @binding(3) var texture_sampler: sampler;
 @group(0) @binding(4) var<storage, read> modelBuffer: array<ModelData>;
+@group(0) @binding(5) var environment_texture: texture_2d<f32>;
 
 struct VertexInput {
     @location(0) position: vec3f,
@@ -51,6 +52,19 @@ fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_in
 	return out;
 }
 
+
+fn calculateReflectionUVs(lightDirection: vec3f) -> vec2f {
+    let L = normalize(lightDirection);
+    let Pi = 3.14159265359;
+    // convert to spherical coords
+    let theta = acos(L.y);
+    let phi = atan2(L.z, L.x);
+
+    // map spherical coords to (0,1) uv space
+    let uv = vec2f((phi + (Pi / 2.0)) / Pi, (theta / Pi));
+    return uv;
+}
+
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let normal_sample = textureSample(normal_texture, texture_sampler, in.uv).rgb;
@@ -64,15 +78,17 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let worldN = localToWorld * (2.0*normal_sample - 1.0);
     let N = normalize(mix(in.normal, worldN, 1.0));
 
-    let albedo = textureSample(albedo_texture, texture_sampler, in.uv).rgb;
+    var albedo = textureSample(albedo_texture, texture_sampler, in.uv).rgb;
+    albedo = mix(vec3f(1.0), albedo, 1.0);
 
     var lightPositions = array(
-        vec3f(5.0, 2.0, 5.0),
-        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
-        // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
+        vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
+        vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
     );
     let V = normalize(in.viewDirection);
 
+    let environmentUvs = calculateReflectionUVs(-reflect(V, N));
+    let environment = textureSample(environment_texture, texture_sampler, environmentUvs).rgb;
 
     let kh = 80.0;
     let kd = 1.0;
@@ -84,9 +100,9 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
         var L = normalize(lightPositions[i].xyz);
         let H = normalize(L + V);
 
-        let ambient = albedo;
+        let ambient = in.color;
         let diffuse = max(0.0, dot(N, L)) * vec3f(1.0) * albedo;
-        let specular = max(0.0, pow(dot(N, H), kh))  * vec3f(1.0);
+        let specular = max(0.0, pow(dot(N, H), kh)) * environment;
         color += (kd * diffuse) + (ks * specular) + (ka * ambient);
     }
 

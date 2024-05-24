@@ -23,18 +23,14 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity) {
     entity->setId(m_nextId);
     m_nextId = m_nextId + 1;
 
-    std::cout << "getting transform" << std::endl;
     glm::mat4x4 transform = entity->getComponent<TransformComponent>()->transform->getMatrix();
     Renderer::ModelData modelData;
     modelData.transform = transform;
-    std::cout << "making list of transforms in from of modeldata" << std::endl;
     std::vector<Renderer::ModelData> mds = { modelData };
-    std::cout << "writing model buffer" << std::endl;
     m_renderer->writeModelBuffer(mds, sizeof(Renderer::ModelData) * id);
 
     std::shared_ptr<Mesh> mesh = entity->getComponent<MeshComponent>()->mesh;
     std::vector<Mesh::VertexData> vds = mesh->getVertexData();
-    std::cout << "adding mesh to vertex buffer" << std::endl;
     int vertexBufferOffset = m_renderer->addMeshToVertexBuffer(vds);
     mesh->setVertexBufferOffset(vertexBufferOffset);
 
