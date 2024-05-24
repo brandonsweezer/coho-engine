@@ -379,6 +379,10 @@ void Renderer::releaseTextures() {
     m_normalTexture.destroy();
     m_normalTexture.release();
     m_normalTextureView.release();
+
+    m_environmentTexture.destroy();
+    m_environmentTexture.release();
+    m_environmentTextureView.release();
 }
 
 bool Renderer::initBindGroups() {
