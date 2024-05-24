@@ -1,5 +1,5 @@
 #pragma once
-#include "Renderer.h"
+#include "../renderer/Renderer.h"
 #include "EntityManager.h"
 #include "components/Components.h"
 #include "components/TransformComponent.h"
@@ -10,15 +10,15 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
-EntityManager::EntityManager(std::shared_ptr<Renderer> renderer) {
-    m_renderer = renderer;
+EntityManager::EntityManager() {
+    
 }
 
 EntityManager::~EntityManager() {
-    m_renderer.reset();
+
 }
 
-int EntityManager::addEntity(std::shared_ptr<Entity> entity) {
+int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderer) {
     if (entity->hasComponent<InstanceComponent>()) {
         int prototypeId = entity->getComponent<InstanceComponent>()->prototype->getId();
         m_instances[prototypeId].push_back(entity);
@@ -29,7 +29,7 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity) {
         Renderer::ModelData modelData;
         modelData.transform = transform;
         std::vector<Renderer::ModelData> mds = { modelData };
-        m_renderer->writeModelBuffer(mds, m_nextModelBufferOffset);
+        renderer->writeModelBuffer(mds, m_nextModelBufferOffset);
 
         m_nextModelBufferOffset += sizeof(Renderer::ModelData);
         return instanceId;
@@ -44,14 +44,13 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity) {
     Renderer::ModelData modelData;
     modelData.transform = transform;
     std::vector<Renderer::ModelData> mds = { modelData };
-    m_renderer->writeModelBuffer(mds, m_nextModelBufferOffset);
+    renderer->writeModelBuffer(mds, m_nextModelBufferOffset);
     m_nextModelBufferOffset += sizeof(Renderer::ModelData);
 
     std::shared_ptr<Mesh> mesh = entity->getComponent<MeshComponent>()->mesh;
     std::vector<Mesh::VertexData> vds = mesh->getVertexData();
-    int vertexBufferOffset = m_renderer->addMeshToVertexBuffer(vds);
+    int vertexBufferOffset = renderer->addMeshToVertexBuffer(vds);
     mesh->setVertexBufferOffset(vertexBufferOffset);
-    std::cout << "id" << id << std::endl;
 
     return id;
 }

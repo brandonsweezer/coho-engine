@@ -1,10 +1,7 @@
 #include "Renderer.h"
-#include "ResourceLoader.h"
-#include "ecs/Entity.h"
-#include "ecs/components/TransformComponent.h"
-#include "ecs/components/InstanceComponent.h"
-#include "ecs/components/MeshComponent.h"
-#include "ecs/components/Mesh.h"
+#include "../ResourceLoader.h"
+#include "../ecs/Entity.h"
+#include "../ecs/components/MeshComponent.h"
 
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
@@ -23,14 +20,20 @@ const float PI = 3.14159265358979323846f;
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
+Renderer::Renderer() {
+    init();
+}
+
+Renderer::~Renderer() {
+    terminate();
+}
+
 void Renderer::writeModelBuffer(std::vector<ModelData> modelData, int offset = 0) {
     m_queue.writeBuffer(m_modelBuffer, offset, modelData.data(), modelData.size() * sizeof(ModelData));
 }
 
-void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities) {
-    handleInput();
-
-    m_uniformData.time = SDL_GetTicks64() / 1000.0f;
+void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, float time) {
+    m_uniformData.time = time;
     m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, time), &m_uniformData.time, sizeof(UniformData::time));
 
     TextureView currentTextureView = m_swapChain.getCurrentTextureView();
@@ -73,12 +76,8 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities) {
     renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
     
     for (auto entity : entities) {
-        if (entity->hasComponent<InstanceComponent>()) {
-            // skip it, just used to track transforms
-        } else {
-            auto mesh = entity->getComponent<MeshComponent>()->mesh;
-            renderPassEncoder.draw(mesh->getVertexCount(), entity->instanceCount, mesh->getVertexBufferOffset(), entity->getId());
-        }
+        auto mesh = entity->getComponent<MeshComponent>()->mesh;
+        renderPassEncoder.draw(mesh->getVertexCount(), entity->instanceCount, mesh->getVertexBufferOffset(), entity->getId());
     }
 
     renderPassEncoder.end();
@@ -90,72 +89,10 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities) {
     
     m_swapChain.present();
     currentTextureView.release();
-
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        switch (e.type) {
-            case SDL_QUIT:
-                m_isRunning = false;
-                break;
-            case SDL_WINDOWEVENT:
-                switch (e.window.event) {
-                    case SDL_WINDOWEVENT_SIZE_CHANGED:
-                    case SDL_WINDOWEVENT_RESIZED:
-                        std::cout << "window resized!!" << std::endl;
-                        resizeWindow(e.window.data1, e.window.data2);
-                        break;
-                }
-                break;
-            case SDL_MOUSEBUTTONDOWN:
-                m_dragState.active = true;
-                m_dragState.startCameraState = m_camera;
-                int xpos, ypos;
-                SDL_GetMouseState(&xpos, &ypos);
-                m_dragState.startMouse = vec2((float)xpos, (float)ypos);
-                break;
-            case SDL_MOUSEBUTTONUP:
-                m_dragState.active = false;
-                break;
-            case SDL_MOUSEWHEEL:
-                m_camera.zoom += e.wheel.y * .1f;
-                updateViewMatrix();
-                break;
-            case SDL_KEYDOWN:
-                m_keys[e.key.keysym.sym] = true;
-                break;
-            case SDL_KEYUP:
-                m_keys[e.key.keysym.sym] = false;
-                break;
-            default:
-                break;
-        }
-    }
     
 }
 
-void Renderer::handleInput() {
-    if (m_dragState.active) {
-        int xpos, ypos;
-        SDL_GetMouseState(&xpos, &ypos);
-        vec2 currentMouse = vec2((float)xpos, (float)ypos);
-		vec2 delta = (currentMouse - m_dragState.startMouse) * m_dragState.sensitivity;
-		m_camera.angles = m_dragState.startCameraState.angles + delta;
-		// Clamp to avoid going too far when orbitting up/down
-		m_camera.angles.y = glm::clamp(m_camera.angles.y, -PI / 2 + 1e-5f, PI / 2 - 1e-5f);
-
-		m_dragState.velocity = delta - m_dragState.previousDelta;
-		m_dragState.previousDelta = delta;
-        updateViewMatrix();
-    }
-
-}
-
-bool Renderer::isRunning() {
-    return m_isRunning;
-}
-
 bool Renderer::init() {
-    m_keys.resize(322, false); // 322 is number of SDL keycodes
     if (!initWindowAndSurface()) return false;
     if (!initDevice()) return false;
     if (!initShaderModule()) return false;
@@ -234,8 +171,6 @@ bool Renderer::initWindowAndSurface() {
     m_instance = createInstance(InstanceDescriptor{});
     if (!m_instance) return false;
 
-    std::cout << "initializing SDL" << std::endl;
-    SDL_SetMainReady();
     if (SDL_Init(SDL_INIT_VIDEO) == -1) {
         return false;
     }

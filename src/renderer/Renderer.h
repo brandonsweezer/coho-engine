@@ -1,13 +1,11 @@
 #pragma once
-#include "ecs/Entity.h"
-#include "ecs/components/Mesh.h"
+#include "../ecs/Entity.h"
+#include "../ecs/components/Mesh.h"
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.hpp>
 #include <sdl2webgpu/sdl2webgpu.h>
 #include <glm/glm.hpp>
 #include <vector>
-
-
 
 class Renderer
 {
@@ -17,14 +15,44 @@ public:
         glm::mat4x4 transform;
     };
 
-    bool init();
+    Renderer();
+    ~Renderer();
+    
     bool isRunning();
-    void onFrame(std::vector<std::shared_ptr<Entity>> entities);
-    void terminate();
+    void onFrame(std::vector<std::shared_ptr<Entity>> entities, float time);
     void writeModelBuffer(std::vector<ModelData> modelData, int offset);
     int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
+    void resizeWindow(int new_width, int new_height);
+
+    struct Camera {
+        glm::vec3 position;
+        glm::vec3 forward;
+        glm::vec2 angles = { 0.0, 0.0 };
+        
+        float zoom = -3.5;
+    };
+    Camera m_camera;
+
+    struct DragState {
+		bool active = false;
+		glm::vec2 startMouse;
+		Camera startCameraState;
+		float sensitivity = 0.01f;
+		float scrollSensitivity = 0.1f;
+
+		glm::vec2 velocity = {0.0, 0.0};
+		glm::vec2 previousDelta;
+		float inertia = 0.9f;
+	};
+    DragState m_dragState;
+
+    void updateProjectionMatrix();
+    void updateViewMatrix();
 
 private:
+    bool init();
+    void terminate();
+
     bool initWindowAndSurface();
     void releaseWindowAndSurface();
 
@@ -52,13 +80,6 @@ private:
     bool initDepthBuffer();
     void releaseDepthBuffer();
 
-    void resizeWindow(int new_width, int new_height);
-
-    void updateProjectionMatrix();
-    void updateViewMatrix();
-
-    void handleInput();
-
 private:
     int m_screenWidth = 640;
     int m_screenHeight = 480;
@@ -74,28 +95,6 @@ private:
         float padding[3]; // need to chunk into 4x4x4 sections (4x4 floats)
     };
     UniformData m_uniformData;
-
-    struct Camera {
-        glm::vec3 position;
-        glm::vec3 forward;
-        glm::vec2 angles = { 0.0, 0.0 };
-        
-        float zoom = -3.5;
-    };
-    Camera m_camera;
-
-    struct DragState {
-		bool active = false;
-		glm::vec2 startMouse;
-		Camera startCameraState;
-		float sensitivity = 0.01f;
-		float scrollSensitivity = 0.1f;
-
-		glm::vec2 velocity = {0.0, 0.0};
-		glm::vec2 previousDelta;
-		float inertia = 0.9f;
-	};
-    DragState m_dragState;
 
     wgpu::Instance m_instance = nullptr;
     SDL_Window* m_window = nullptr;
@@ -133,6 +132,4 @@ private:
     wgpu::Texture m_depthTexture = nullptr;
     wgpu::TextureView m_depthTextureView = nullptr;
     wgpu::Sampler m_depthSampler = nullptr;
-
-    std::vector<bool> m_keys;
 };

@@ -1,4 +1,4 @@
-#include "Renderer.h"
+#include "Engine.h"
 #include "ResourceLoader.h"
 #include "ecs/EntityManager.h"
 #include "ecs/Entity.h"
@@ -17,13 +17,8 @@
 #include <glm/gtx/string_cast.hpp>
 
 int main() {
-    std::shared_ptr<Renderer> renderer = std::make_shared<Renderer>();
-    if (!renderer->init()) {
-        std::cerr << "Could not initialize renderer" << std::endl;
-        exit(-1);
-    }
+    Engine engine;
 
-    EntityManager entityManager(renderer);
     std::vector<VertexData> vd;
     ResourceLoader::loadObj(RESOURCE_DIR, "cube.obj", vd);
     std::cout << "initializing models" << std::endl;
@@ -31,6 +26,10 @@ int main() {
     // create the prototype
     std::shared_ptr<Entity> prototype = std::make_shared<Entity>();
     prototype->addComponent<MeshComponent>();
+    prototype->instanceCount = 1000;
+    float cuberoot = std::trunc(std::pow(prototype->instanceCount, 1.0/3.0));
+    std::cout << "cube root of " << prototype->instanceCount << ": " << cuberoot << std::endl;
+
     prototype->getComponent<MeshComponent>()->mesh->setVertexData(vd);
     prototype->addComponent<TransformComponent>();
 
@@ -38,41 +37,36 @@ int main() {
     float xpos = 0;
     float zpos = 0;
     glm::vec3 pos(xpos, ypos, zpos);
-    pos = pos * glm::vec3(2.0) - glm::vec3(4.0);
+    pos = pos - glm::vec3(cuberoot);
     prototype->getComponent<TransformComponent>()->transform->setPosition(
         pos
     );
-    prototype->instanceCount = 1000000;
-    entityManager.addEntity(prototype);
+    engine.entityManager->addEntity(prototype, engine.renderer);
 
     // create instances
-    for (int i = 0; i < (1000000 - 1); ++i) {
+    for (int i = 0; i < (prototype->instanceCount - 1); ++i) {
         std::shared_ptr<Entity> instance = std::make_shared<Entity>();
         
         instance->addComponent<InstanceComponent>();
         instance->getComponent<InstanceComponent>()->prototype = prototype;
 
         instance->addComponent<TransformComponent>();
-        ypos = i / (100 * 100);
-        xpos = i % 100;
-        zpos = (i / 100) % 100;
+        ypos = i / (cuberoot * cuberoot);
+        xpos = i % (int)std::trunc(cuberoot);
+        zpos = (i / (int)cuberoot) % (int)std::trunc(cuberoot);
         glm::vec3 instancePos = glm::vec3(xpos, ypos, zpos);
-        instancePos = instancePos * glm::vec3(2.0) - glm::vec3(100.0);
+        instancePos = instancePos - glm::vec3(cuberoot);
         instance->getComponent<TransformComponent>()->transform->setPosition(
             instancePos
         );
         instance->getComponent<TransformComponent>()->transform->setScale(
-            glm::vec3(0.5)
+            glm::vec3(1.0)
         );
-        entityManager.addEntity(instance);
+        engine.entityManager->addEntity(instance, engine.renderer);
 
     }
-    std::vector<std::shared_ptr<Entity>> entities = entityManager.getAllEntities();
-    std::cout << "begin rendering" << std::endl;
-    while (renderer->isRunning()) {
-        renderer->onFrame(entities);
-    }
 
-    renderer->terminate();
+    engine.start();
+
     return 1;
 }
