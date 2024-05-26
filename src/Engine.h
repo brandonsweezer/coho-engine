@@ -1,3 +1,4 @@
+#pragma once
 #include "renderer/Renderer.h"
 #include "ecs/EntityManager.h"
 #include "input/InputManager.h"

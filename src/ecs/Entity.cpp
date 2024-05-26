@@ -3,6 +3,7 @@
 // Constructor definition
 Entity::Entity() {
     // default constructor implementation
+    instanceCount = 1;
 }
 
 // Destructor definition

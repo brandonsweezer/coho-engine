@@ -32,7 +32,7 @@ void Renderer::writeModelBuffer(std::vector<ModelData> modelData, int offset = 0
     m_queue.writeBuffer(m_modelBuffer, offset, modelData.data(), modelData.size() * sizeof(ModelData));
 }
 
-void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, float time) {
+void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time) {
     m_uniformData.time = time;
     m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, time), &m_uniformData.time, sizeof(UniformData::time));
 
@@ -41,9 +41,64 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, float time
         std::cerr << "Could not get current texture view!" << std::endl;
     }
 
+    skyBoxRenderPass(currentTextureView, sky);
+    geometryRenderPass(currentTextureView, entities);
+    
+    m_swapChain.present();
+    currentTextureView.release();
+    
+}
+
+void Renderer::skyBoxRenderPass(TextureView currentTextureView, std::shared_ptr<Entity> sky) {
+    RenderPassColorAttachment colorAttachment;
+    colorAttachment.clearValue = { 0.0, 0.0, 0.0 };
+    colorAttachment.loadOp = LoadOp::Clear;
+    colorAttachment.storeOp = StoreOp::Store;
+    colorAttachment.resolveTarget = nullptr;
+    colorAttachment.view = currentTextureView;
+
+    RenderPassDepthStencilAttachment depthStencilAttachment;
+    depthStencilAttachment.depthClearValue = 1.0;
+    depthStencilAttachment.depthLoadOp = LoadOp::Load;
+    depthStencilAttachment.depthStoreOp = StoreOp::Store;
+    depthStencilAttachment.depthReadOnly = false;
+
+    depthStencilAttachment.stencilClearValue = 0;
+    depthStencilAttachment.stencilLoadOp = LoadOp::Load;
+    depthStencilAttachment.stencilStoreOp = StoreOp::Store;
+    depthStencilAttachment.stencilReadOnly = true;
+    depthStencilAttachment.view = m_depthTextureView;
+
+    RenderPassDescriptor renderPassDesc;
+    renderPassDesc.colorAttachmentCount = 1;
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+    renderPassDesc.occlusionQuerySet = nullptr;
+    renderPassDesc.timestampWriteCount = 0;
+    renderPassDesc.timestampWrites = nullptr;
+
+    CommandEncoder commandEncoder = m_device.createCommandEncoder(CommandEncoderDescriptor{});
+    RenderPassEncoder renderPassEncoder = commandEncoder.beginRenderPass(renderPassDesc);
+    renderPassEncoder.setPipeline(m_renderPipeline);
+    renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
+    renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
+
+    // draw
+    auto mesh = sky->getComponent<MeshComponent>()->mesh;
+    renderPassEncoder.draw(mesh->getVertexCount(), 1, mesh->getVertexBufferOffset(), sky->getId());
+
+    renderPassEncoder.end();
+    CommandBuffer commandBuffer = commandEncoder.finish(CommandBufferDescriptor{});
+    m_queue.submit(commandBuffer);
+    commandEncoder.release();
+    commandBuffer.release();
+    renderPassEncoder.release();
+}
+
+void Renderer::geometryRenderPass(TextureView currentTextureView, std::vector<std::shared_ptr<Entity>> entities) {
     RenderPassColorAttachment renderPassColorAttachment;
     renderPassColorAttachment.clearValue = { 0.0, 0.0, 0.0 };
-    renderPassColorAttachment.loadOp = LoadOp::Clear;
+    renderPassColorAttachment.loadOp = LoadOp::Load;
     renderPassColorAttachment.storeOp = StoreOp::Store;
     renderPassColorAttachment.resolveTarget = nullptr;
     renderPassColorAttachment.view = currentTextureView;
@@ -57,7 +112,7 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, float time
     depthStencilAttachment.stencilClearValue = 0;
     depthStencilAttachment.stencilLoadOp = LoadOp::Clear;
     depthStencilAttachment.stencilStoreOp = StoreOp::Store;
-    depthStencilAttachment.stencilReadOnly = true;
+    depthStencilAttachment.stencilReadOnly = false;
 
     depthStencilAttachment.view = m_depthTextureView;
 
@@ -74,7 +129,7 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, float time
     renderPassEncoder.setPipeline(m_renderPipeline);
     renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
     renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
-    
+
     for (auto entity : entities) {
         auto mesh = entity->getComponent<MeshComponent>()->mesh;
         renderPassEncoder.draw(mesh->getVertexCount(), entity->instanceCount, mesh->getVertexBufferOffset(), entity->getId());
@@ -83,13 +138,9 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, float time
     renderPassEncoder.end();
     CommandBuffer commandBuffer = commandEncoder.finish(CommandBufferDescriptor{});
     m_queue.submit(commandBuffer);
+    commandEncoder.release();
     commandBuffer.release();
     renderPassEncoder.release();
-    commandEncoder.release();
-    
-    m_swapChain.present();
-    currentTextureView.release();
-    
 }
 
 bool Renderer::init() {
@@ -206,14 +257,14 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxBindGroups = 1;
     requiredLimits.limits.maxVertexBuffers = 1;
     requiredLimits.limits.maxVertexAttributes = 7;
-    requiredLimits.limits.maxBufferSize = 1000000 * sizeof(VertexData); // 1,000,000 verts
+    requiredLimits.limits.maxBufferSize = 1000000 * sizeof(ModelData); // 1,000,000 models
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
-    requiredLimits.limits.maxInterStageShaderComponents = 17;
+    requiredLimits.limits.maxInterStageShaderComponents = 18;
     requiredLimits.limits.maxStorageBuffersPerShaderStage = 1;
     requiredLimits.limits.maxStorageBufferBindingSize = 1000000 * sizeof(ModelData); // 1 million objects
 
-    requiredLimits.limits.maxTextureDimension1D = 1440;
-    requiredLimits.limits.maxTextureDimension2D = 5120;
+    requiredLimits.limits.maxTextureDimension1D = 8192;
+    requiredLimits.limits.maxTextureDimension2D = 8192;
     requiredLimits.limits.maxTextureArrayLayers = 1;
     requiredLimits.limits.maxSampledTexturesPerShaderStage = 3;
     requiredLimits.limits.maxSamplersPerShaderStage = 1;
@@ -287,7 +338,7 @@ bool Renderer::initTextures() {
     std::cout << "loading textures" << std::endl;
     m_albedoTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_albedo.jpg", m_device, m_albedoTextureView);
     m_normalTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_normals.png", m_device, m_normalTextureView);
-    m_environmentTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "autumn_park_4k.jpg", m_device, m_environmentTextureView);
+    m_environmentTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "kloppenheim_06_puresky.jpg", m_device, m_environmentTextureView);
 
     SamplerDescriptor samplerDesc;
     samplerDesc.addressModeU = AddressMode::Repeat;
@@ -471,7 +522,7 @@ bool Renderer::initRenderPipeline() {
     fragmentState.targets = &colorTargetState;
     renderPipelineDesc.fragment = &fragmentState;
 
-    renderPipelineDesc.primitive.cullMode = CullMode::None;
+    renderPipelineDesc.primitive.cullMode = CullMode::Back;
     renderPipelineDesc.primitive.frontFace = FrontFace::CCW;
     renderPipelineDesc.primitive.topology = PrimitiveTopology::TriangleList; 
     renderPipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
@@ -578,7 +629,7 @@ bool Renderer::initDepthBuffer() {
 
 void Renderer::updateProjectionMatrix() {
     float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
-    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 100.0f);
+    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 1000.0f);
     m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, projection_matrix), &m_uniformData.projection_matrix, sizeof(UniformData::projection_matrix));
 }
 

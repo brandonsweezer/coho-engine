@@ -8,6 +8,7 @@
 #include "ecs/components/Mesh.h"
 #include <iostream>
 #include <memory>
+#include "utilities/MeshBuilder.h"
 
 #define SDL_MAIN_HANDLED
 #undef main
@@ -19,53 +20,45 @@
 int main() {
     Engine engine;
 
-    std::vector<VertexData> vd;
-    ResourceLoader::loadObj(RESOURCE_DIR, "cube.obj", vd);
     std::cout << "initializing models" << std::endl;
 
-    // create the prototype
-    std::shared_ptr<Entity> prototype = std::make_shared<Entity>();
-    prototype->addComponent<MeshComponent>();
-    prototype->instanceCount = 1000;
-    float cuberoot = std::trunc(std::pow(prototype->instanceCount, 1.0/3.0));
-    std::cout << "cube root of " << prototype->instanceCount << ": " << cuberoot << std::endl;
+    std::shared_ptr<Mesh> skyMesh = MeshBuilder::createUVSphere(10, 10, 1, true);
+    std::shared_ptr<Entity> sky = std::make_shared<Entity>();
+    sky->addComponent<MeshComponent>();
+    sky->getComponent<MeshComponent>()->mesh.reset();
+    sky->getComponent<MeshComponent>()->mesh = skyMesh;
+    sky->addComponent<TransformComponent>();
+    engine.entityManager->setSky(sky, engine.renderer);
 
-    prototype->getComponent<MeshComponent>()->mesh->setVertexData(vd);
-    prototype->addComponent<TransformComponent>();
+    std::vector<Mesh::VertexData> vd;
+    ResourceLoader::loadObj(RESOURCE_DIR, "fourareen.obj", vd);
+    
+    std::shared_ptr<Entity> boat = std::make_shared<Entity>();
+    boat->instanceCount = 1000;
+    boat->addComponent<MeshComponent>();
+    boat->getComponent<MeshComponent>()->mesh->setVertexData(vd);
+    boat->addComponent<TransformComponent>();
+    boat->getComponent<TransformComponent>()->transform->setPosition(vec3(-5, -5, -5));
+    engine.entityManager->addEntity(boat, engine.renderer);
 
-    float ypos = 0;
-    float xpos = 0;
-    float zpos = 0;
-    glm::vec3 pos(xpos, ypos, zpos);
-    pos = pos - glm::vec3(cuberoot);
-    prototype->getComponent<TransformComponent>()->transform->setPosition(
-        pos
-    );
-    engine.entityManager->addEntity(prototype, engine.renderer);
-
-    // create instances
-    for (int i = 0; i < (prototype->instanceCount - 1); ++i) {
-        std::shared_ptr<Entity> instance = std::make_shared<Entity>();
-        
-        instance->addComponent<InstanceComponent>();
-        instance->getComponent<InstanceComponent>()->prototype = prototype;
-
-        instance->addComponent<TransformComponent>();
-        ypos = i / (cuberoot * cuberoot);
-        xpos = i % (int)std::trunc(cuberoot);
-        zpos = (i / (int)cuberoot) % (int)std::trunc(cuberoot);
-        glm::vec3 instancePos = glm::vec3(xpos, ypos, zpos);
-        instancePos = instancePos - glm::vec3(cuberoot);
-        instance->getComponent<TransformComponent>()->transform->setPosition(
-            instancePos
-        );
-        instance->getComponent<TransformComponent>()->transform->setScale(
-            glm::vec3(1.0)
-        );
-        engine.entityManager->addEntity(instance, engine.renderer);
-
+    for (int i = 0; i < 10; ++i) {
+        std::cout << i << std::endl;
+        for (int j = 0; j < 10; ++j) {
+            for (int k = 0; k < 10; ++k) {
+                std::shared_ptr<Entity> instance = std::make_shared<Entity>();
+                instance->addComponent<InstanceComponent>();
+                instance->getComponent<InstanceComponent>()->prototype = boat;
+                instance->addComponent<TransformComponent>();
+                vec3 pos = vec3(i - 5, j - 5, k - 5);
+                instance->getComponent<TransformComponent>()->transform->setPosition(pos);
+                // instance->getComponent<TransformComponent>()->transform->setScale(vec3(0.2));
+                engine.entityManager->addEntity(instance, engine.renderer);
+            }
+        }
     }
+    
 
+    // todo: second render pass + render sky box.
     engine.start();
 
     return 1;

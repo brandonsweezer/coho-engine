@@ -8,6 +8,7 @@ struct UniformData {
 
 struct ModelData {
     transform: mat4x4f,
+    textureIndex: u32,
 }
 
 @group(0) @binding(0) var<uniform> uUniformData: UniformData;
@@ -34,20 +35,27 @@ struct VertexOutput {
     @location(3) tangent: vec3f,
     @location(4) bitangent: vec3f,
     @location(5) uv: vec2f,
+    @location(6) instance_id: u32
 }
 
 @vertex
 fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_index) instance_id: u32 ) -> VertexOutput {
     var out: VertexOutput;
     let model_matrix = modelBuffer[instance_id].transform;
-    let worldPosition = model_matrix * vec4f(in.position, 1.0);
+    var worldPosition = model_matrix * vec4f(in.position, 1.0);
+    if (instance_id == 0u) {
+        worldPosition = model_matrix *vec4f(uUniformData.camera_world_position + in.position, 1.0);
+        
+    }
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
     
     out.tangent = (uUniformData.model_matrix * vec4f(in.tangent, 0.0)).xyz;
 	out.bitangent = (uUniformData.model_matrix * vec4f(in.bitangent, 0.0)).xyz;
     out.normal = (uUniformData.model_matrix * vec4f(in.normal, 0.0)).xyz;
     out.viewDirection = uUniformData.camera_world_position - worldPosition.xyz;
+    out.color = in.color;
     out.uv = in.uv;
+    out.instance_id = instance_id;
     
 	return out;
 }
@@ -57,17 +65,20 @@ fn calculateReflectionUVs(lightDirection: vec3f) -> vec2f {
     let L = normalize(lightDirection);
     let Pi = 3.14159265359;
     // convert to spherical coords
-    let theta = acos(L.y);
-    let phi = atan2(L.z, L.x);
+    let phi = asin(L.y);
+    let theta = atan2(L.z, L.x);
 
     // map spherical coords to (0,1) uv space
-    let uv = vec2f((phi + (Pi / 2.0)) / Pi, (theta / Pi));
+    let uv = vec2f((theta + (Pi / 2.0)) / Pi, (phi / Pi));
     return uv;
 }
 
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
-    let normal_sample = textureSample(normal_texture, texture_sampler, in.uv).rgb;
+    var normal_sample = textureSample(normal_texture, texture_sampler, in.uv).rgb;
+    if (in.instance_id == 0u) {
+        normal_sample = in.normal;
+    }
     
     let localToWorld = mat3x3f(
         normalize(in.tangent),
@@ -82,25 +93,32 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     albedo = mix(vec3f(1.0), albedo, 1.0);
 
     var lightPositions = array(
-        vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
-        vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
+        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
+        // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
+        vec3f(5.0, 2.0, 5.0),
+        // vec3f(5.0, -2.0, 5.0)
     );
     let V = normalize(in.viewDirection);
 
     let environmentUvs = calculateReflectionUVs(-reflect(V, N));
     let environment = textureSample(environment_texture, texture_sampler, environmentUvs).rgb;
+    let skyTexture = textureSample(environment_texture, texture_sampler, in.uv).rgb;
+    if (in.instance_id == 0u) {
+        // todo: make this less hacky (handle in different render pass with different shader maybe)
+        return vec4f(pow(skyTexture, vec3f(2.2)), 1.0);
+    }
 
-    let kh = 80.0;
-    let kd = 0.0;
-    let ks = 0.0;
-    let ka = 1.0;
+    let kh = 60.0;
+    let kd = 0.8;
+    let ks = 0.5;
+    let ka = 0.1;
 
     var color = vec3f(0.0);
     for (var i: i32 = 0; i < 2; i++) {
         var L = normalize(lightPositions[i].xyz);
         let H = normalize(L + V);
 
-        let ambient = environment;
+        let ambient = albedo;
         let diffuse = max(0.0, dot(N, L)) * vec3f(1.0) * albedo;
         let specular = max(0.0, pow(dot(N, H), kh)) * environment;
         color += (kd * diffuse) + (ks * specular) + (ka * ambient);

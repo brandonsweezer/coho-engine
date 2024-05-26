@@ -13,13 +13,15 @@ class Renderer
 public:
     struct ModelData {
         glm::mat4x4 transform;
+        uint32_t textureIndex;
+        float padding[3]; // need to chunk into 4x4x4 sections (4x4 floats)
     };
 
     Renderer();
     ~Renderer();
     
     bool isRunning();
-    void onFrame(std::vector<std::shared_ptr<Entity>> entities, float time);
+    void onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time);
     void writeModelBuffer(std::vector<ModelData> modelData, int offset);
     int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
     void resizeWindow(int new_width, int new_height);
@@ -79,6 +81,9 @@ private:
 
     bool initDepthBuffer();
     void releaseDepthBuffer();
+
+    void geometryRenderPass(wgpu::TextureView currentTextureView, std::vector<std::shared_ptr<Entity>> entities);
+    void skyBoxRenderPass(wgpu::TextureView currentTextureView, std::shared_ptr<Entity> sky);
 
 private:
     int m_screenWidth = 640;
