@@ -35,27 +35,42 @@ void Renderer::writeModelBuffer(std::vector<ModelData> modelData, int offset = 0
 void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time) {
     m_uniformData.time = time;
     m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, time), &m_uniformData.time, sizeof(UniformData::time));
+    
+    // ~~~
+    m_surfaceTextureTexture.release();
+    m_surface.getCurrentTexture(&m_surfaceTexture);
+    m_surfaceTextureTexture = m_surfaceTexture.texture;
+    m_surfaceTextureView.release();
+    // todo: fix this workflow. feels wrong to release and recreate every frame
+    // might be necessary tho :shrug:
+    TextureViewDescriptor surfaceViewDesc;
+    surfaceViewDesc.format = m_preferredFormat;
+    surfaceViewDesc.dimension = TextureViewDimension::_2D;
+    surfaceViewDesc.baseMipLevel = 0;
+    surfaceViewDesc.mipLevelCount = 1;
+    surfaceViewDesc.arrayLayerCount = 1;
+    surfaceViewDesc.baseArrayLayer = 0;
+    surfaceViewDesc.aspect = TextureAspect::All;
+    m_surfaceTextureView = m_surfaceTextureTexture.createView(surfaceViewDesc);
+    // ~~~
 
-    TextureView currentTextureView = m_swapChain.getCurrentTextureView();
-    if (!currentTextureView) {
+    if (!m_surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus::WGPUSurfaceGetCurrentTextureStatus_Success) {
         std::cerr << "Could not get current texture view!" << std::endl;
+        std::cerr << "m_surfaceTexture.status: " << m_surfaceTexture.status << std::endl;
     }
-
-    skyBoxRenderPass(currentTextureView, sky);
-    geometryRenderPass(currentTextureView, entities);
     
-    m_swapChain.present();
-    currentTextureView.release();
-    
+    skyBoxRenderPass(sky);
+    geometryRenderPass(entities);
+    m_surface.present();
 }
 
-void Renderer::skyBoxRenderPass(TextureView currentTextureView, std::shared_ptr<Entity> sky) {
+void Renderer::skyBoxRenderPass(std::shared_ptr<Entity> sky) {
     RenderPassColorAttachment colorAttachment;
     colorAttachment.clearValue = { 0.0, 0.0, 0.0 };
     colorAttachment.loadOp = LoadOp::Clear;
     colorAttachment.storeOp = StoreOp::Store;
     colorAttachment.resolveTarget = nullptr;
-    colorAttachment.view = currentTextureView;
+    colorAttachment.view = m_surfaceTextureView;
 
     RenderPassDepthStencilAttachment depthStencilAttachment;
     depthStencilAttachment.depthClearValue = 1.0;
@@ -74,7 +89,6 @@ void Renderer::skyBoxRenderPass(TextureView currentTextureView, std::shared_ptr<
     renderPassDesc.colorAttachments = &colorAttachment;
     renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
     renderPassDesc.occlusionQuerySet = nullptr;
-    renderPassDesc.timestampWriteCount = 0;
     renderPassDesc.timestampWrites = nullptr;
 
     CommandEncoder commandEncoder = m_device.createCommandEncoder(CommandEncoderDescriptor{});
@@ -95,13 +109,13 @@ void Renderer::skyBoxRenderPass(TextureView currentTextureView, std::shared_ptr<
     renderPassEncoder.release();
 }
 
-void Renderer::geometryRenderPass(TextureView currentTextureView, std::vector<std::shared_ptr<Entity>> entities) {
+void Renderer::geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities) {
     RenderPassColorAttachment renderPassColorAttachment;
     renderPassColorAttachment.clearValue = { 0.0, 0.0, 0.0 };
     renderPassColorAttachment.loadOp = LoadOp::Load;
     renderPassColorAttachment.storeOp = StoreOp::Store;
     renderPassColorAttachment.resolveTarget = nullptr;
-    renderPassColorAttachment.view = currentTextureView;
+    renderPassColorAttachment.view = m_surfaceTextureView;
     
     RenderPassDepthStencilAttachment depthStencilAttachment;
     depthStencilAttachment.depthClearValue = 1.0;
@@ -121,7 +135,6 @@ void Renderer::geometryRenderPass(TextureView currentTextureView, std::vector<st
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
     renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
     renderPassDesc.occlusionQuerySet = nullptr;
-    renderPassDesc.timestampWriteCount = 0;
     renderPassDesc.timestampWrites = nullptr;
 
     CommandEncoder commandEncoder = m_device.createCommandEncoder(CommandEncoderDescriptor{});
@@ -151,18 +164,15 @@ bool Renderer::init() {
     if (!initTextures()) return false;
     if (!initBindGroups()) return false;
     if (!initRenderPipeline()) return false;
-    if (!initSwapChain()) return false;
+    if (!initSurfaceTexture()) return false;
     if (!initDepthBuffer()) return false;
 
     return true;
 }
 
 void Renderer::terminate() {
-    // TODO: implement shared pointers or RAII of some sort
-    // still figuring out where/how to implement a wrapper class
-    // or if that's unnecessary and i should just use shared_ptrs?
     releaseDepthBuffer();
-    releaseSwapChain();
+    releaseSurfaceTexture();
     releaseRenderPipeline();
     releaseBindGroups();
     releaseTextures();
@@ -178,8 +188,9 @@ void Renderer::releaseDepthBuffer() {
     m_depthTextureView.release();
 }
 
-void Renderer::releaseSwapChain() {
-    m_swapChain.release();
+void Renderer::releaseSurfaceTexture() {
+    m_surfaceTextureView.release();
+    m_surfaceTextureTexture.release();
 }
 
 void Renderer::releaseRenderPipeline() {
@@ -255,6 +266,7 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxUniformBufferBindingSize = sizeof(UniformData);
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
     requiredLimits.limits.maxBindGroups = 1;
+    requiredLimits.limits.maxBindingsPerBindGroup = 7;
     requiredLimits.limits.maxVertexBuffers = 1;
     requiredLimits.limits.maxVertexAttributes = 7;
     requiredLimits.limits.maxBufferSize = 1000000 * sizeof(ModelData); // 1,000,000 models
@@ -266,13 +278,13 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxTextureDimension1D = 8192;
     requiredLimits.limits.maxTextureDimension2D = 8192;
     requiredLimits.limits.maxTextureArrayLayers = 1;
-    requiredLimits.limits.maxSampledTexturesPerShaderStage = 3;
-    requiredLimits.limits.maxSamplersPerShaderStage = 1;
+    requiredLimits.limits.maxSampledTexturesPerShaderStage = 4;
+    requiredLimits.limits.maxSamplersPerShaderStage = 2;
 
     DeviceDescriptor deviceDesc;
     deviceDesc.defaultQueue = QueueDescriptor{};
-    deviceDesc.requiredFeaturesCount = 1;
-    deviceDesc.requiredFeatures = (WGPUFeatureName*)&NativeFeature::VertexWritableStorage;
+    deviceDesc.requiredFeatureCount = 1;
+    deviceDesc.requiredFeatures = (WGPUFeatureName*)&NativeFeature::TextureBindingArray;
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const * message, void * userdata) {
         std::cout << "Device lost! Reason: " << reason << userdata << "(\n" << message << "\n)" << std::endl;
@@ -338,7 +350,8 @@ bool Renderer::initTextures() {
     std::cout << "loading textures" << std::endl;
     m_albedoTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_albedo.jpg", m_device, m_albedoTextureView);
     m_normalTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_normals.png", m_device, m_normalTextureView);
-    m_environmentTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "kloppenheim_06_puresky.jpg", m_device, m_environmentTextureView);
+    m_environmentTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "quarry_cloudy.jpg", m_device, m_environmentTextureView, 1);
+    m_radianceTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "quarry_cloudy_2k.hdr", m_device, m_radianceTextureView, 1);
 
     SamplerDescriptor samplerDesc;
     samplerDesc.addressModeU = AddressMode::Repeat;
@@ -353,6 +366,7 @@ bool Renderer::initTextures() {
     samplerDesc.compare = CompareFunction::Undefined;
     m_textureSampler = m_device.createSampler(samplerDesc);
 
+    m_environmentSampler = m_device.createSampler(samplerDesc);
     return true;
 }
 
@@ -374,7 +388,7 @@ void Renderer::releaseTextures() {
 
 bool Renderer::initBindGroups() {
     std::cout << "initializing bind groups" << std::endl;
-    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(6, Default);
+    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(7, Default);
     // uniform layout
     bindGroupLayoutEntries[0].binding = 0;
     bindGroupLayoutEntries[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
@@ -413,13 +427,20 @@ bool Renderer::initBindGroups() {
     bindGroupLayoutEntries[5].texture.multisampled = false;
     bindGroupLayoutEntries[5].texture.viewDimension = TextureViewDimension::_2D;
 
+    // sky texture
+    bindGroupLayoutEntries[6].binding = 6;
+    bindGroupLayoutEntries[6].visibility = ShaderStage::Fragment;
+    bindGroupLayoutEntries[6].texture.sampleType = TextureSampleType::Float;
+    bindGroupLayoutEntries[6].texture.multisampled = false;
+    bindGroupLayoutEntries[6].texture.viewDimension = TextureViewDimension::_2D;
+
     BindGroupLayoutDescriptor bindGroupLayoutDesc;
     bindGroupLayoutDesc.entries = bindGroupLayoutEntries.data();
     bindGroupLayoutDesc.entryCount = (uint32_t)bindGroupLayoutEntries.size();
 
     m_bindGroupLayout = m_device.createBindGroupLayout(bindGroupLayoutDesc);
 
-    std::vector<BindGroupEntry> bindGroupEntries(6, Default);
+    std::vector<BindGroupEntry> bindGroupEntries(7, Default);
     bindGroupEntries[0].binding = 0;
     bindGroupEntries[0].offset = 0;
     bindGroupEntries[0].buffer = m_uniformBuffer;
@@ -445,6 +466,10 @@ bool Renderer::initBindGroups() {
     bindGroupEntries[5].binding = 5;
     bindGroupEntries[5].offset = 0;
     bindGroupEntries[5].textureView = m_environmentTextureView;
+
+    bindGroupEntries[6].binding = 6;
+    bindGroupEntries[6].offset = 0;
+    bindGroupEntries[6].textureView = m_radianceTextureView;
 
     BindGroupDescriptor bindGroupDesc;
     bindGroupDesc.entries = bindGroupEntries.data();
@@ -569,17 +594,34 @@ bool Renderer::initShaderModule() {
     return true;
 }
 
-bool Renderer::initSwapChain() {
-    std::cout << "initializing swap chain" << std::endl;
-    SwapChainDescriptor swapChainDesc;
-    swapChainDesc.format = m_preferredFormat;
-    swapChainDesc.height = m_screenHeight;
-    swapChainDesc.width = m_screenWidth;
-    swapChainDesc.usage = TextureUsage::RenderAttachment;
-    swapChainDesc.presentMode = PresentMode::Fifo;
+bool Renderer::initSurfaceTexture() {
+    std::cout << "initializing surface texture" << std::endl;
+    SurfaceConfiguration surfaceConfig;
+    surfaceConfig.alphaMode = CompositeAlphaMode::Auto;
+    surfaceConfig.device = m_device;
+    surfaceConfig.format = m_preferredFormat;
+    surfaceConfig.height = m_screenHeight;
+    surfaceConfig.width = m_screenWidth;
+    surfaceConfig.presentMode = PresentMode::Fifo;
+    surfaceConfig.usage = TextureUsage::RenderAttachment;
+    surfaceConfig.viewFormatCount = 1;
+    surfaceConfig.viewFormats = (WGPUTextureFormat*)&m_preferredFormat;
 
-    m_swapChain = m_device.createSwapChain(m_surface, swapChainDesc);
+    m_surface.configure(surfaceConfig);
 
+    std::cout << "creating the surface texture" << std::endl;
+    m_surface.getCurrentTexture(&m_surfaceTexture);
+    m_surfaceTextureTexture = m_surfaceTexture.texture;
+
+    TextureViewDescriptor surfaceViewDesc;
+    surfaceViewDesc.format = m_preferredFormat;
+    surfaceViewDesc.dimension = TextureViewDimension::_2D;
+    surfaceViewDesc.baseMipLevel = 0;
+    surfaceViewDesc.mipLevelCount = 1;
+    surfaceViewDesc.arrayLayerCount = 1;
+    surfaceViewDesc.baseArrayLayer = 0;
+    surfaceViewDesc.aspect = TextureAspect::All;
+    m_surfaceTextureView = m_surfaceTextureTexture.createView(surfaceViewDesc);
     return true;
 }
 
@@ -657,10 +699,10 @@ void Renderer::resizeWindow(int new_width, int new_height) {
     m_screenHeight = new_height;
 
     releaseDepthBuffer();
-    releaseSwapChain();
+    releaseSurfaceTexture();
 
     initDepthBuffer();
-    initSwapChain();
+    initSurfaceTexture();
 
     updateProjectionMatrix();
 }

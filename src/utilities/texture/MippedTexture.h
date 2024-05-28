@@ -1,0 +1,1 @@
+// todo: allow generation and saving of mip-mapped textures so i dont have to calculate the at runtime.

@@ -85,9 +85,14 @@ static void writeMipMaps(
 	queue.release();
 }
 
-// overloaded loadTexture -> this one creates a textureView as well.
-Texture ResourceLoader::loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device, wgpu::TextureView& texture_view) {
-    Texture texture = loadTexture(path, filename, device);
+// overloaded loadTexture -> this one creates a `w as well.
+Texture ResourceLoader::loadTexture(
+        const std::string& path,
+        const std::string& filename,
+        wgpu::Device& device,
+        wgpu::TextureView& texture_view,
+        int mipLevelCount) {
+    Texture texture = loadTexture(path, filename, device, mipLevelCount);
 
     std::cout << "texture view " << std::endl;
     TextureViewDescriptor texViewDesc;
@@ -95,7 +100,7 @@ Texture ResourceLoader::loadTexture(const std::string& path, const std::string& 
     texViewDesc.baseArrayLayer = 0;
     texViewDesc.aspect = TextureAspect::All;
     texViewDesc.baseMipLevel = 0;
-    texViewDesc.mipLevelCount = 8;
+    texViewDesc.mipLevelCount = mipLevelCount;
     texViewDesc.dimension = TextureViewDimension::_2D;
     texViewDesc.format = TextureFormat::RGBA8Unorm;
     texViewDesc.label = filename.c_str();
@@ -105,7 +110,11 @@ Texture ResourceLoader::loadTexture(const std::string& path, const std::string& 
 }
 
 // overloaded load texture. this one doesn't create a texture view
-Texture ResourceLoader::loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device) {
+Texture ResourceLoader::loadTexture(
+        const std::string& path,
+        const std::string& filename,
+        wgpu::Device& device,
+        int mipLevelCount) {
     int width, height, channels;
     auto data = stbi_load(std::string(path + std::string("/") + filename).c_str(), &width, &height, &channels, 4);
     if (data == nullptr) {
@@ -116,7 +125,7 @@ Texture ResourceLoader::loadTexture(const std::string& path, const std::string& 
     textureDesc.dimension = TextureDimension::_2D;
     textureDesc.format = TextureFormat::RGBA8Unorm; // png/jpeg format
     textureDesc.label = filename.c_str();
-    textureDesc.mipLevelCount = 8;
+    textureDesc.mipLevelCount = mipLevelCount;
     textureDesc.sampleCount = 1;
     textureDesc.size.width = width;
     textureDesc.size.height = height;

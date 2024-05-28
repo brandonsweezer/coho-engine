@@ -15,8 +15,19 @@ public:
 
     static std::string loadShaderCode(std::string path);
     
-    static wgpu::Texture loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device, wgpu::TextureView& texture_view);
-    static wgpu::Texture loadTexture(const std::string& path, const std::string& filename, wgpu::Device& device);
+    static wgpu::Texture loadTexture(
+        const std::string& path, 
+        const std::string& filename, 
+        wgpu::Device& device, 
+        wgpu::TextureView& texture_view,
+        int mipLevelCount = 8
+        );
+    static wgpu::Texture loadTexture(
+        const std::string& path, 
+        const std::string& filename, 
+        wgpu::Device& device,
+        int mipLevelCount = 8
+        );
 
     static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
     

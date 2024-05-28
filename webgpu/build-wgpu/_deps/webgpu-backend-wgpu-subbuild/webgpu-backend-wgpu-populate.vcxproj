@@ -1,0 +1,301 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{428F9838-F8D6-3399-9FBB-D52C5155C1CA}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>webgpu-backend-wgpu-populate</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-mkdir.rule">
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Creating directories for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -Dcfgdir=/Debug -P C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/tmp/webgpu-backend-wgpu-populate-mkdirs.cmake
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-mkdir
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-mkdir</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-download.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Performing download step (git clone) for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps
+if %errorlevel% neq 0 goto :cmEnd
+C:
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -P C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/tmp/webgpu-backend-wgpu-populate-gitclone.cmake
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-download
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\webgpu-backend-wgpu-populate-gitinfo.txt;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-mkdir;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-download</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-update.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Performing update step for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-src
+if %errorlevel% neq 0 goto :cmEnd
+C:
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -Dcan_fetch=YES -P C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/tmp/webgpu-backend-wgpu-populate-gitupdate.cmake
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\tmp\webgpu-backend-wgpu-populate-gitupdate.cmake;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\webgpu-backend-wgpu-populate-update-info.txt;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-download;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-update</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</VerifyInputsAndOutputsExist>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-patch.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No patch step for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-patch
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\webgpu-backend-wgpu-populate-patch-info.txt;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-update;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-patch</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</VerifyInputsAndOutputsExist>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-configure.rule">
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No configure step for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-build
+if %errorlevel% neq 0 goto :cmEnd
+C:
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-configure
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\tmp\webgpu-backend-wgpu-populate-cfgcmd.txt;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-patch;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-configure</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-build.rule">
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No build step for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-build
+if %errorlevel% neq 0 goto :cmEnd
+C:
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-build
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-configure;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-install.rule">
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No install step for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-build
+if %errorlevel% neq 0 goto :cmEnd
+C:
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-install
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-install</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5abffa6f0ce1bcac59955197c3af71ca\webgpu-backend-wgpu-populate-test.rule">
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No test step for 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-build
+if %errorlevel% neq 0 goto :cmEnd
+C:
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-test
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-install;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-test</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\5c4f06056ac7a3c15cfcea5baee15480\webgpu-backend-wgpu-populate-complete.rule">
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Completed 'webgpu-backend-wgpu-populate'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E make_directory C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/Debug
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/Debug/webgpu-backend-wgpu-populate-complete
+if %errorlevel% neq 0 goto :cmEnd
+"C:\Program Files\CMake\bin\cmake.exe" -E touch C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/webgpu-backend-wgpu-populate-prefix/src/webgpu-backend-wgpu-populate-stamp/Debug/webgpu-backend-wgpu-populate-done
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-install;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-mkdir;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-download;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-update;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-patch;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-configure;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-build;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\src\webgpu-backend-wgpu-populate-stamp\Debug\webgpu-backend-wgpu-populate-test;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\Debug\webgpu-backend-wgpu-populate-complete</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</VerifyInputsAndOutputsExist>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\d5ac2cec04f6331e4f4cde3df5d2772d\webgpu-backend-wgpu-populate.rule">
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\Debug\webgpu-backend-wgpu-populate-complete;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\webgpu-backend-wgpu-populate</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</VerifyInputsAndOutputsExist>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild -BC:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild --check-stamp-file C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-3.29\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\PatchInfo.txt.in;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\RepositoryInfo.txt.in;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\UpdateInfo.txt.in;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\cfgcmd.txt.in;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\gitclone.cmake.in;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\gitupdate.cmake.in;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\mkdirs.cmake.in;C:\Program Files\CMake\share\cmake-3.29\Modules\ExternalProject\shared_internal_commands.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-3.29\Modules\Platform\WindowsPaths.cmake;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\3.29.2\CMakeSystem.cmake;C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\webgpu-backend-wgpu-populate-prefix\tmp\webgpu-backend-wgpu-populate-mkdirs.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\CMakeFiles\webgpu-backend-wgpu-populate">
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\Brandon\Documents\github\coho-engine\webgpu\build-wgpu\_deps\webgpu-backend-wgpu-subbuild\ZERO_CHECK.vcxproj">
+      <Project>{9F2CCC73-1AA0-30FC-AEDA-746F8912024B}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,14 @@
+# Target labels
+ webgpu-backend-wgpu-populate
+# Source files and their labels
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/webgpu-backend-wgpu-populate
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/d5ac2cec04f6331e4f4cde3df5d2772d/webgpu-backend-wgpu-populate.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5c4f06056ac7a3c15cfcea5baee15480/webgpu-backend-wgpu-populate-complete.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-build.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-configure.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-download.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-install.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-mkdir.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-patch.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-test.rule
+C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-update.rule

@@ -76,17 +76,17 @@ private:
     bool initBindGroups();
     void releaseBindGroups();
 
-    bool initSwapChain();
-    void releaseSwapChain();
+    bool initSurfaceTexture();
+    void releaseSurfaceTexture();
 
     bool initDepthBuffer();
     void releaseDepthBuffer();
 
-    void geometryRenderPass(wgpu::TextureView currentTextureView, std::vector<std::shared_ptr<Entity>> entities);
-    void skyBoxRenderPass(wgpu::TextureView currentTextureView, std::shared_ptr<Entity> sky);
+    void geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities);
+    void skyBoxRenderPass(std::shared_ptr<Entity> sky);
 
 private:
-    int m_screenWidth = 640;
+    int m_screenWidth = 720;
     int m_screenHeight = 480;
 
     bool m_isRunning = true;
@@ -104,7 +104,8 @@ private:
     wgpu::Instance m_instance = nullptr;
     SDL_Window* m_window = nullptr;
     wgpu::Surface m_surface = nullptr;
-    wgpu::SwapChain m_swapChain = nullptr;
+    wgpu::SurfaceTexture m_surfaceTexture;
+    // wgpu::SwapChain m_swapChain = nullptr;
     wgpu::Device m_device = nullptr;
     wgpu::Queue m_queue = nullptr;
     wgpu::ShaderModule m_shaderModule = nullptr;
@@ -124,13 +125,18 @@ private:
     wgpu::Buffer m_modelBuffer = nullptr;
 
     // textures
+    wgpu::Texture m_surfaceTextureTexture = nullptr;
+    wgpu::TextureView m_surfaceTextureView = nullptr;
     wgpu::Texture m_albedoTexture = nullptr;
     wgpu::TextureView m_albedoTextureView = nullptr;
     wgpu::Texture m_normalTexture = nullptr;
     wgpu::TextureView m_normalTextureView = nullptr;
     wgpu::Texture m_environmentTexture = nullptr;
     wgpu::TextureView m_environmentTextureView = nullptr;
+    wgpu::Texture m_radianceTexture = nullptr;
+    wgpu::TextureView m_radianceTextureView = nullptr;
     wgpu::Sampler m_textureSampler = nullptr;
+    wgpu::Sampler m_environmentSampler = nullptr;
 
     wgpu::Buffer m_uniformBuffer = nullptr;
 

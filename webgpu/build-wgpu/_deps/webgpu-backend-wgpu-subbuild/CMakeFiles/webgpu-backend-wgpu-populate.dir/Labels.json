@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/webgpu-backend-wgpu-populate"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/d5ac2cec04f6331e4f4cde3df5d2772d/webgpu-backend-wgpu-populate.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5c4f06056ac7a3c15cfcea5baee15480/webgpu-backend-wgpu-populate-complete.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-build.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-configure.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-download.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-install.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-mkdir.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-patch.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-test.rule"
+		},
+		{
+			"file" : "C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/_deps/webgpu-backend-wgpu-subbuild/CMakeFiles/5abffa6f0ce1bcac59955197c3af71ca/webgpu-backend-wgpu-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"webgpu-backend-wgpu-populate"
+		],
+		"name" : "webgpu-backend-wgpu-populate"
+	}
+}

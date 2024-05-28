@@ -17,6 +17,7 @@ struct ModelData {
 @group(0) @binding(3) var texture_sampler: sampler;
 @group(0) @binding(4) var<storage, read> modelBuffer: array<ModelData>;
 @group(0) @binding(5) var environment_texture: texture_2d<f32>;
+@group(0) @binding(6) var radiance_texture: texture_2d<f32>;
 
 struct VertexInput {
     @location(0) position: vec3f,
@@ -73,6 +74,10 @@ fn calculateReflectionUVs(lightDirection: vec3f) -> vec2f {
     return uv;
 }
 
+fn perceivedLuminance(color: vec3f) -> f32 {
+    return (color.r * 0.299) + (color.g * 0.587) + (color.b * 0.114);
+}
+
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     var normal_sample = textureSample(normal_texture, texture_sampler, in.uv).rgb;
@@ -87,40 +92,48 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     );
     
     let worldN = localToWorld * (2.0*normal_sample - 1.0);
-    let N = normalize(mix(in.normal, worldN, 1.0));
+    let N = normalize(mix(in.normal, worldN, 0.0));
 
     var albedo = textureSample(albedo_texture, texture_sampler, in.uv).rgb;
-    albedo = mix(vec3f(1.0), albedo, 1.0);
+    albedo = mix(vec3f(1.0), albedo, 0.0);
 
-    var lightPositions = array(
-        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
-        // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
-        vec3f(5.0, 2.0, 5.0),
-        // vec3f(5.0, -2.0, 5.0)
-    );
+    // var lightPositions = array(
+    //     // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
+    //     // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
+    //     vec3f(5.0, 2.0, 5.0),
+    //     // vec3f(5.0, -2.0, 5.0)
+    // );
     let V = normalize(in.viewDirection);
 
-    let environmentUvs = calculateReflectionUVs(-reflect(V, N));
-    let environment = textureSample(environment_texture, texture_sampler, environmentUvs).rgb;
-    let skyTexture = textureSample(environment_texture, texture_sampler, in.uv).rgb;
+    let reflectedUVs = calculateReflectionUVs(-reflect(V, N));
+    let reflectedRadianceSample = textureSample(radiance_texture, texture_sampler, reflectedUVs).rgb;
+    let reflectedEnvironmentSample = textureSample(environment_texture, texture_sampler, reflectedUVs).rgb;
+    let normalUVs = calculateReflectionUVs(N);
+    let normalEnvironmentSample = textureSample(environment_texture, texture_sampler, normalUVs).rgb;
+    let normalRadianceSample = textureSample(radiance_texture, texture_sampler, normalUVs).rgb;
+
+    let skyBoxTexture = textureSample(environment_texture, texture_sampler, in.uv).rgb;
+    let skyBoxRadiance = textureSample(radiance_texture, texture_sampler, in.uv).rgb;
     if (in.instance_id == 0u) {
         // todo: make this less hacky (handle in different render pass with different shader maybe)
-        return vec4f(pow(skyTexture, vec3f(2.2)), 1.0);
+        return vec4f(pow(skyBoxTexture, vec3f(2.2)), 1.0);
     }
 
-    let kh = 60.0;
-    let kd = 0.8;
+    let kh = 1.0;
+    let kd = 1.0;
     let ks = 0.5;
-    let ka = 0.1;
+    let ka = 0.0;
 
     var color = vec3f(0.0);
-    for (var i: i32 = 0; i < 2; i++) {
-        var L = normalize(lightPositions[i].xyz);
-        let H = normalize(L + V);
+    for (var i: i32 = 0; i < 1; i++) { // loop for every light (we do one environment sample)
+        // var L = normalize(lightPositions[i].xyz);
+
+        // let H = normalize(L + V);
 
         let ambient = albedo;
-        let diffuse = max(0.0, dot(N, L)) * vec3f(1.0) * albedo;
-        let specular = max(0.0, pow(dot(N, H), kh)) * environment;
+        // let diffuse = perceivedLuminance(normalRadianceSample) * albedo;
+        let diffuse = reflectedEnvironmentSample;
+        let specular = pow(max(0.0, 1.0 - dot(V, N)), kh) * perceivedLuminance(reflectedRadianceSample) * reflectedEnvironmentSample;
         color += (kd * diffuse) + (ks * specular) + (ka * ambient);
     }
 

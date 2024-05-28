@@ -1,0 +1,10 @@
+^C:\USERS\BRANDON\DOCUMENTS\GITHUB\COHO-ENGINE\WEBGPU\BUILD-WGPU\CMAKEFILES\E00F826119F6CA7B505444330B818CFD\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Brandon/Documents/github/coho-engine/webgpu -BC:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/Brandon/Documents/github/coho-engine/webgpu/build-wgpu/webgpu.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
