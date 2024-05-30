@@ -20,7 +20,6 @@ std::shared_ptr<Mesh> MeshBuilder::createUVSphere(int rows, int columns, float r
 
     float pitch = -90.0f;
     int i = 0;
-    std::cout << "generating top cap" << std::endl;
     // generate top cap
     for (float heading = 0.0f; heading < 360.0f; heading += headingAngle) {
         Mesh::VertexData v0;
@@ -55,7 +54,6 @@ std::shared_ptr<Mesh> MeshBuilder::createUVSphere(int rows, int columns, float r
         }
     }
 
-    std::cout << "generating middle section" << std::endl;
     // generate top hemisphere
     for (pitch = -90.0f + pitchAngle; pitch < 90.0f - pitchAngle; pitch += pitchAngle) {
         for (float heading = 0.0f; heading < 360.0f; heading += headingAngle) {
@@ -110,7 +108,6 @@ std::shared_ptr<Mesh> MeshBuilder::createUVSphere(int rows, int columns, float r
         }
     }
 
-    std::cout << "generating bottom cap" << std::endl;
     // generate bottom cap
     pitch = 90.0f;
     apex = vec3(0.0, -radius, 0.0);
@@ -146,11 +143,9 @@ std::shared_ptr<Mesh> MeshBuilder::createUVSphere(int rows, int columns, float r
         }
     }
 
-    std::cout << "creating mesh" << std::endl;
     std::shared_ptr<Mesh> uvSphereMesh = std::make_shared<Mesh>();
     uvSphereMesh->setVertexData(vertices);
 
-    std::cout << "returning" << std::endl;
     return uvSphereMesh;
 }
 

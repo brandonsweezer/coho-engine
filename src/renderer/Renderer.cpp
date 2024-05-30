@@ -32,6 +32,10 @@ void Renderer::writeModelBuffer(std::vector<ModelData> modelData, int offset = 0
     m_queue.writeBuffer(m_modelBuffer, offset, modelData.data(), modelData.size() * sizeof(ModelData));
 }
 
+void Renderer::writeMaterialBuffer(std::vector<MaterialData> materialData, int offset = 0) {
+    m_queue.writeBuffer(m_materialBuffer, offset, materialData.data(), materialData.size() * sizeof(MaterialData));
+}
+
 void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time) {
     m_uniformData.time = time;
     m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, time), &m_uniformData.time, sizeof(UniformData::time));
@@ -159,8 +163,13 @@ void Renderer::geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities)
 bool Renderer::init() {
     if (!initWindowAndSurface()) return false;
     if (!initDevice()) return false;
-    if (!initShaderModule()) return false;
     if (!initBuffers()) return false;
+    
+    return true;
+}
+
+bool Renderer::startup() {
+    if (!initShaderModule()) return false;
     if (!initTextures()) return false;
     if (!initBindGroups()) return false;
     if (!initRenderPipeline()) return false;
@@ -210,6 +219,9 @@ void Renderer::releaseBuffers() {
 
     m_modelBuffer.destroy();
     m_modelBuffer.release();
+
+    m_materialBuffer.destroy();
+    m_materialBuffer.release();
 
 }
 
@@ -272,19 +284,24 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxBufferSize = 1000000 * sizeof(ModelData); // 1,000,000 models
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
     requiredLimits.limits.maxInterStageShaderComponents = 18;
-    requiredLimits.limits.maxStorageBuffersPerShaderStage = 1;
+    requiredLimits.limits.maxStorageBuffersPerShaderStage = 2;
     requiredLimits.limits.maxStorageBufferBindingSize = 1000000 * sizeof(ModelData); // 1 million objects
 
     requiredLimits.limits.maxTextureDimension1D = 8192;
     requiredLimits.limits.maxTextureDimension2D = 8192;
     requiredLimits.limits.maxTextureArrayLayers = 1;
-    requiredLimits.limits.maxSampledTexturesPerShaderStage = 4;
+    requiredLimits.limits.maxSampledTexturesPerShaderStage = 6;
     requiredLimits.limits.maxSamplersPerShaderStage = 2;
 
     DeviceDescriptor deviceDesc;
     deviceDesc.defaultQueue = QueueDescriptor{};
-    deviceDesc.requiredFeatureCount = 1;
-    deviceDesc.requiredFeatures = (WGPUFeatureName*)&NativeFeature::TextureBindingArray;
+    deviceDesc.requiredFeatureCount = 2;
+    // special conversion for native features
+    std::vector<WGPUFeatureName> reqFeatures{
+        (WGPUFeatureName)NativeFeature::TextureBindingArray,
+        (WGPUFeatureName)NativeFeature::SampledTextureAndStorageBufferArrayNonUniformIndexing
+    };
+    deviceDesc.requiredFeatures = reqFeatures.data();
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const * message, void * userdata) {
         std::cout << "Device lost! Reason: " << reason << userdata << "(\n" << message << "\n)" << std::endl;
@@ -315,6 +332,126 @@ int Renderer::addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData) {
     return vertexOffset;
 }
 
+// returns the index of the material in the material buffer
+int Renderer::registerMaterial(std::shared_ptr<coho::Material> material) {
+    MaterialData md;
+    md.baseColor = material->baseColor;
+    md.roughness = material->roughness;
+    md.diffuseTextureIndex = (uint32_t)-1;
+    md.normalTextureIndex = (uint32_t)-1;
+
+    if (material->diffuseTexture != nullptr) {
+        md.diffuseTextureIndex = registerTexture(material->diffuseTexture, material->name + "(diffuse)", material->diffuseTexture->mipLevels);
+    }
+
+    if (material->normalTexture != nullptr) {
+        md.normalTextureIndex = registerTexture(material->normalTexture, material->name + "(normal)", material->normalTexture->mipLevels);
+    }
+
+    int materialIndex = m_materialCount;
+    int offset = m_materialCount * sizeof(MaterialData);
+    writeMaterialBuffer(std::vector<MaterialData>{md}, offset);
+    m_materialCount += 1;
+    return materialIndex;
+}
+
+// Auxiliary function for registerTexture
+void Renderer::writeMipMaps(
+	wgpu::Texture texture,
+	wgpu::Extent3D textureSize,
+	uint32_t mipLevelCount,
+	std::vector<unsigned char> pixelData
+    )
+{
+	// Arguments telling which part of the texture we upload to
+	wgpu::ImageCopyTexture destination;
+	destination.texture = texture;
+	destination.origin = { 0, 0, 0 };
+	destination.aspect = wgpu::TextureAspect::All;
+
+	// Arguments telling how the C++ side pixel memory is laid out
+	wgpu::TextureDataLayout source;
+	source.offset = 0;
+
+	// Create image data
+	wgpu::Extent3D mipLevelSize = textureSize;
+	std::vector<unsigned char> previousLevelPixels;
+	wgpu::Extent3D previousMipLevelSize;
+	for (uint32_t level = 0; level < mipLevelCount; ++level) {
+		// Pixel data for the current level
+		std::vector<unsigned char> pixels(4 * mipLevelSize.width * mipLevelSize.height);
+		if (level == 0) {
+			// We cannot really avoid this copy since we need this
+			// in previousLevelPixels at the next iteration
+			memcpy(pixels.data(), pixelData.data(), pixels.size());
+		}
+		else {
+			// Create mip level data
+			for (uint32_t i = 0; i < mipLevelSize.width; ++i) {
+				for (uint32_t j = 0; j < mipLevelSize.height; ++j) {
+					unsigned char* p = &pixels[4 * (j * mipLevelSize.width + i)];
+					// Get the corresponding 4 pixels from the previous level
+					unsigned char* p00 = &previousLevelPixels[4 * ((2 * j + 0) * previousMipLevelSize.width + (2 * i + 0))];
+					unsigned char* p01 = &previousLevelPixels[4 * ((2 * j + 0) * previousMipLevelSize.width + (2 * i + 1))];
+					unsigned char* p10 = &previousLevelPixels[4 * ((2 * j + 1) * previousMipLevelSize.width + (2 * i + 0))];
+					unsigned char* p11 = &previousLevelPixels[4 * ((2 * j + 1) * previousMipLevelSize.width + (2 * i + 1))];
+					// Average
+					p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
+					p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
+					p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
+					p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
+				}
+			}
+		}
+
+		// Upload data to the GPU texture
+		destination.mipLevel = level;
+		source.bytesPerRow = 4 * mipLevelSize.width;
+		source.rowsPerImage = mipLevelSize.height;
+		m_queue.writeTexture(destination, pixels.data(), pixels.size(), source, mipLevelSize);
+
+		previousLevelPixels = std::move(pixels);
+		previousMipLevelSize = mipLevelSize;
+		mipLevelSize.width /= 2;
+		mipLevelSize.height /= 2;
+	}
+}
+
+// returns the index of the registered textureView
+int Renderer::registerTexture(std::shared_ptr<coho::Texture> texture, std::string name, int mipLevelCount) {
+    wgpu::TextureDescriptor textureDesc;
+    textureDesc.dimension = wgpu::TextureDimension::_2D;
+    textureDesc.format = wgpu::TextureFormat::RGBA8Unorm; // png/jpeg format
+    textureDesc.label = name.c_str();
+    textureDesc.mipLevelCount = mipLevelCount;
+    textureDesc.sampleCount = 1;
+    textureDesc.size.width = texture->width;
+    textureDesc.size.height = texture->height;
+    textureDesc.size.depthOrArrayLayers = 1;
+    textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+    textureDesc.viewFormatCount = 0;
+    textureDesc.viewFormats = nullptr;
+    wgpu::Texture registeredTexture = m_device.createTexture(textureDesc);
+    m_textureArray.push_back(registeredTexture);
+
+    wgpu::TextureViewDescriptor texViewDesc;
+    texViewDesc.arrayLayerCount = 1;
+    texViewDesc.baseArrayLayer = 0;
+    texViewDesc.aspect = wgpu::TextureAspect::All;
+    texViewDesc.baseMipLevel = 0;
+    texViewDesc.mipLevelCount = mipLevelCount;
+    texViewDesc.dimension = wgpu::TextureViewDimension::_2D;
+    texViewDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+    texViewDesc.label = name.c_str();
+    TextureView texture_view = registeredTexture.createView(texViewDesc);
+    m_textureViewArray.push_back(texture_view);
+
+    writeMipMaps(registeredTexture, textureDesc.size, textureDesc.mipLevelCount, texture->pixelData);
+
+    texture->bufferIndex = (int)m_textureViewArray.size() - 1;
+    return texture->bufferIndex;
+}
+
 bool Renderer::initBuffers() {
     std::cout << "initializing buffers" << std::endl;
 
@@ -324,10 +461,15 @@ bool Renderer::initBuffers() {
     bufferDesc.size = 1000000 * sizeof(VertexData); // 1,000,000 vertices
     m_vertexBuffer = m_device.createBuffer(bufferDesc);
 
-    bufferDesc.label = "model matrix buffer";
+    bufferDesc.label = "model buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
     bufferDesc.size = 1000000 * sizeof(ModelData); // 1,000,000 instances
     m_modelBuffer = m_device.createBuffer(bufferDesc);
+
+    bufferDesc.label = "material buffer";
+    bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
+    bufferDesc.size = 2 * sizeof(MaterialData); // 100 materials
+    m_materialBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "uniform buffer";
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
@@ -348,10 +490,6 @@ bool Renderer::initBuffers() {
 
 bool Renderer::initTextures() {
     std::cout << "loading textures" << std::endl;
-    m_albedoTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_albedo.jpg", m_device, m_albedoTextureView);
-    m_normalTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "fourareen2K_normals.png", m_device, m_normalTextureView);
-    m_environmentTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "quarry_cloudy.jpg", m_device, m_environmentTextureView, 1);
-    m_radianceTexture = ResourceLoader::loadTexture(RESOURCE_DIR, "quarry_cloudy_2k.hdr", m_device, m_radianceTextureView, 1);
 
     SamplerDescriptor samplerDesc;
     samplerDesc.addressModeU = AddressMode::Repeat;
@@ -372,67 +510,54 @@ bool Renderer::initTextures() {
 
 void Renderer::releaseTextures() {
     m_textureSampler.release();
+
+    for (auto texture : m_textureArray) {
+        texture.destroy();
+        texture.release();
+    }
     
-    m_albedoTexture.destroy();
-    m_albedoTexture.release();
-    m_albedoTextureView.release();
-
-    m_normalTexture.destroy();
-    m_normalTexture.release();
-    m_normalTextureView.release();
-
-    m_environmentTexture.destroy();
-    m_environmentTexture.release();
-    m_environmentTextureView.release();
+    for (auto textureView : m_textureViewArray) {
+        textureView.release();
+    }
 }
 
 bool Renderer::initBindGroups() {
     std::cout << "initializing bind groups" << std::endl;
-    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(7, Default);
+    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(5, Default);
     // uniform layout
     bindGroupLayoutEntries[0].binding = 0;
     bindGroupLayoutEntries[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     bindGroupLayoutEntries[0].buffer.type = BufferBindingType::Uniform;
     bindGroupLayoutEntries[0].buffer.minBindingSize = sizeof(UniformData);
 
-    // albedo layout
+    // array of textures
+    BindGroupLayoutEntryExtras textureArrayLayout;
+    textureArrayLayout.count = (uint32_t)m_textureViewArray.size();
+    textureArrayLayout.chain.sType = (WGPUSType)WGPUSType_BindGroupLayoutEntryExtras;
+    textureArrayLayout.chain.next = nullptr;
     bindGroupLayoutEntries[1].binding = 1;
-    bindGroupLayoutEntries[1].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindGroupLayoutEntries[1].texture.sampleType = TextureSampleType::Float;
+    bindGroupLayoutEntries[1].visibility = ShaderStage::Fragment;
     bindGroupLayoutEntries[1].texture.multisampled = false;
     bindGroupLayoutEntries[1].texture.viewDimension = TextureViewDimension::_2D;
-
-    // normal map layout
-    bindGroupLayoutEntries[2].binding = 2;
-    bindGroupLayoutEntries[2].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindGroupLayoutEntries[2].texture.sampleType = TextureSampleType::Float;
-    bindGroupLayoutEntries[2].texture.multisampled = false;
-    bindGroupLayoutEntries[2].texture.viewDimension = TextureViewDimension::_2D;
+    bindGroupLayoutEntries[1].texture.sampleType = TextureSampleType::Float;
+    bindGroupLayoutEntries[1].nextInChain = &textureArrayLayout.chain;
 
     // texture sampler layout
-    bindGroupLayoutEntries[3].binding = 3;
-    bindGroupLayoutEntries[3].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindGroupLayoutEntries[3].sampler.type = SamplerBindingType::Filtering;
+    bindGroupLayoutEntries[2].binding = 2;
+    bindGroupLayoutEntries[2].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindGroupLayoutEntries[2].sampler.type = SamplerBindingType::Filtering;
 
     // model buffer layout
+    bindGroupLayoutEntries[3].binding = 3;
+    bindGroupLayoutEntries[3].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindGroupLayoutEntries[3].buffer.type = BufferBindingType::ReadOnlyStorage;
+    bindGroupLayoutEntries[3].buffer.minBindingSize = sizeof(ModelData);
+
+    // material buffer layout
     bindGroupLayoutEntries[4].binding = 4;
-    bindGroupLayoutEntries[4].visibility = ShaderStage::Vertex;
+    bindGroupLayoutEntries[4].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     bindGroupLayoutEntries[4].buffer.type = BufferBindingType::ReadOnlyStorage;
-    bindGroupLayoutEntries[4].buffer.minBindingSize = sizeof(ModelData);
-
-    // environment texture
-    bindGroupLayoutEntries[5].binding = 5;
-    bindGroupLayoutEntries[5].visibility = ShaderStage::Fragment;
-    bindGroupLayoutEntries[5].texture.sampleType = TextureSampleType::Float;
-    bindGroupLayoutEntries[5].texture.multisampled = false;
-    bindGroupLayoutEntries[5].texture.viewDimension = TextureViewDimension::_2D;
-
-    // sky texture
-    bindGroupLayoutEntries[6].binding = 6;
-    bindGroupLayoutEntries[6].visibility = ShaderStage::Fragment;
-    bindGroupLayoutEntries[6].texture.sampleType = TextureSampleType::Float;
-    bindGroupLayoutEntries[6].texture.multisampled = false;
-    bindGroupLayoutEntries[6].texture.viewDimension = TextureViewDimension::_2D;
+    bindGroupLayoutEntries[4].buffer.minBindingSize = sizeof(MaterialData);
 
     BindGroupLayoutDescriptor bindGroupLayoutDesc;
     bindGroupLayoutDesc.entries = bindGroupLayoutEntries.data();
@@ -440,36 +565,34 @@ bool Renderer::initBindGroups() {
 
     m_bindGroupLayout = m_device.createBindGroupLayout(bindGroupLayoutDesc);
 
-    std::vector<BindGroupEntry> bindGroupEntries(7, Default);
+    std::vector<BindGroupEntry> bindGroupEntries(5, Default);
     bindGroupEntries[0].binding = 0;
     bindGroupEntries[0].offset = 0;
     bindGroupEntries[0].buffer = m_uniformBuffer;
     bindGroupEntries[0].size = sizeof(UniformData);
 
+    BindGroupEntryExtras textureArray;
+    textureArray.textureViewCount = m_textureViewArray.size();
+    textureArray.textureViews = (WGPUTextureView*)m_textureViewArray.data();
+    textureArray.chain.sType = (WGPUSType)WGPUSType_BindGroupEntryExtras;
+    textureArray.chain.next = nullptr;
     bindGroupEntries[1].binding = 1;
     bindGroupEntries[1].offset = 0;
-    bindGroupEntries[1].textureView = m_albedoTextureView;
-    
+    bindGroupEntries[1].nextInChain = &textureArray.chain;
+
     bindGroupEntries[2].binding = 2;
     bindGroupEntries[2].offset = 0;
-    bindGroupEntries[2].textureView = m_normalTextureView;
+    bindGroupEntries[2].sampler = m_textureSampler;
 
     bindGroupEntries[3].binding = 3;
     bindGroupEntries[3].offset = 0;
-    bindGroupEntries[3].sampler = m_textureSampler;
+    bindGroupEntries[3].buffer = m_modelBuffer;
+    bindGroupEntries[3].size = 1000000 * sizeof(ModelData); // 1,000,000 instances
 
     bindGroupEntries[4].binding = 4;
     bindGroupEntries[4].offset = 0;
-    bindGroupEntries[4].buffer = m_modelBuffer;
-    bindGroupEntries[4].size = 1000000 * sizeof(ModelData); // 1,000,000 instances
-
-    bindGroupEntries[5].binding = 5;
-    bindGroupEntries[5].offset = 0;
-    bindGroupEntries[5].textureView = m_environmentTextureView;
-
-    bindGroupEntries[6].binding = 6;
-    bindGroupEntries[6].offset = 0;
-    bindGroupEntries[6].textureView = m_radianceTextureView;
+    bindGroupEntries[4].buffer = m_materialBuffer;
+    bindGroupEntries[4].size = 2 * sizeof(MaterialData); // 2 materials
 
     BindGroupDescriptor bindGroupDesc;
     bindGroupDesc.entries = bindGroupEntries.data();
@@ -585,6 +708,7 @@ bool Renderer::initShaderModule() {
     shaderModuleWGSLDesc.code = shaderCode.c_str();
     shaderModuleWGSLDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
     shaderModuleWGSLDesc.chain.next = nullptr;
+    
     ShaderModuleDescriptor shaderModuleDesc;
     shaderModuleDesc.hintCount = 0;
     shaderModuleDesc.hints = nullptr;

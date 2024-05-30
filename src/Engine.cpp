@@ -20,6 +20,7 @@ Engine::~Engine() {
 }
 
 void Engine::start() {
+    renderer->startup();
     m_isRunning = true;
     m_isDrawing = true;
     m_isSimulating = true;
@@ -42,7 +43,7 @@ void Engine::draw() {
     if (!m_isDrawing) return;
 
     float time = SDL_GetTicks64() / 1000.0f;
-    renderer->onFrame(entityManager->getAllEntities(), entityManager->getSky(), time);
+    renderer->onFrame(entityManager->getRenderableEntities(), entityManager->getSky(), time);
 }
 
 void Engine::shutdown() {

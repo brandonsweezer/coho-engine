@@ -1,6 +1,8 @@
 #pragma once
 #include "../ecs/Entity.h"
 #include "../ecs/components/Mesh.h"
+#include "../ecs/components/Texture.h"
+#include "../ecs/components/Material.h"
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.hpp>
 #include <sdl2webgpu/sdl2webgpu.h>
@@ -13,18 +15,33 @@ class Renderer
 public:
     struct ModelData {
         glm::mat4x4 transform;
-        uint32_t textureIndex;
-        float padding[3]; // need to chunk into 4x4x4 sections (4x4 floats)
+        uint32_t materialIndex;
+        uint32_t isSkybox;
+        float padding[2]; // need to chunk into 4x4x4 sections (4x4 floats)
+    };
+
+    struct MaterialData {
+        glm::vec3 baseColor;
+        uint32_t diffuseTextureIndex;
+        uint32_t normalTextureIndex;
+        float roughness;
+        float padding[2];
     };
 
     Renderer();
     ~Renderer();
+
+    bool startup();
     
     bool isRunning();
     void onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time);
     void writeModelBuffer(std::vector<ModelData> modelData, int offset);
+    void writeMaterialBuffer(std::vector<MaterialData> materialData, int offset);
     int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
     void resizeWindow(int new_width, int new_height);
+
+    int registerMaterial(std::shared_ptr<coho::Material> material);
+    int registerTexture(std::shared_ptr<coho::Texture> texture, std::string filename, int mipLevelCount = 8);
 
     struct Camera {
         glm::vec3 position;
@@ -54,6 +71,13 @@ public:
 private:
     bool init();
     void terminate();
+
+    void writeMipMaps(
+	    wgpu::Texture texture,
+	    wgpu::Extent3D textureSize,
+	    uint32_t mipLevelCount,
+	    std::vector<unsigned char> pixelData
+        );
 
     bool initWindowAndSurface();
     void releaseWindowAndSurface();
@@ -104,8 +128,9 @@ private:
     wgpu::Instance m_instance = nullptr;
     SDL_Window* m_window = nullptr;
     wgpu::Surface m_surface = nullptr;
+    wgpu::Texture m_surfaceTextureTexture = nullptr;
+    wgpu::TextureView m_surfaceTextureView = nullptr;
     wgpu::SurfaceTexture m_surfaceTexture;
-    // wgpu::SwapChain m_swapChain = nullptr;
     wgpu::Device m_device = nullptr;
     wgpu::Queue m_queue = nullptr;
     wgpu::ShaderModule m_shaderModule = nullptr;
@@ -124,17 +149,13 @@ private:
 
     wgpu::Buffer m_modelBuffer = nullptr;
 
+    wgpu::Buffer m_materialBuffer = nullptr;
+    int m_materialCount = 0;
+
     // textures
-    wgpu::Texture m_surfaceTextureTexture = nullptr;
-    wgpu::TextureView m_surfaceTextureView = nullptr;
-    wgpu::Texture m_albedoTexture = nullptr;
-    wgpu::TextureView m_albedoTextureView = nullptr;
-    wgpu::Texture m_normalTexture = nullptr;
-    wgpu::TextureView m_normalTextureView = nullptr;
-    wgpu::Texture m_environmentTexture = nullptr;
-    wgpu::TextureView m_environmentTextureView = nullptr;
-    wgpu::Texture m_radianceTexture = nullptr;
-    wgpu::TextureView m_radianceTextureView = nullptr;
+    std::vector<wgpu::Texture> m_textureArray;
+    std::vector<wgpu::TextureView> m_textureViewArray;
+
     wgpu::Sampler m_textureSampler = nullptr;
     wgpu::Sampler m_environmentSampler = nullptr;
 

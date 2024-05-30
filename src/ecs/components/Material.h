@@ -1,7 +1,19 @@
+#pragma once
+#include "Texture.h"
 #include <memory>
+#include <glm/glm.hpp>
+#include <iostream>
+using namespace coho;
 
-class Material {
-public:
-    std::shared_ptr<Texture> albedoTexture = nullptr;
-    std::shared_ptr<Texture> normalTexture = nullptr;
-};
+namespace coho {
+    class Material {
+    public:
+        std::string name;
+        glm::vec3 baseColor;
+        float roughness;
+        std::shared_ptr<Texture> diffuseTexture;
+        std::shared_ptr<Texture> normalTexture;
+
+        int materialIndex = -1;
+    };
+}

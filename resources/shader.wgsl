@@ -8,16 +8,22 @@ struct UniformData {
 
 struct ModelData {
     transform: mat4x4f,
-    textureIndex: u32,
+    materialIndex: u32,
+    isSkybox: u32,
 }
 
+struct MaterialData {
+    baseColor: vec3f,
+    diffuseTextureIndex: u32,
+    normalTextureIndex: u32,
+    roughness: f32,
+};
+
 @group(0) @binding(0) var<uniform> uUniformData: UniformData;
-@group(0) @binding(1) var albedo_texture: texture_2d<f32>;
-@group(0) @binding(2) var normal_texture: texture_2d<f32>;
-@group(0) @binding(3) var texture_sampler: sampler;
-@group(0) @binding(4) var<storage, read> modelBuffer: array<ModelData>;
-@group(0) @binding(5) var environment_texture: texture_2d<f32>;
-@group(0) @binding(6) var radiance_texture: texture_2d<f32>;
+@group(0) @binding(1) var textureArray: binding_array<texture_2d<f32>>;
+@group(0) @binding(2) var texture_sampler: sampler;
+@group(0) @binding(3) var<storage, read> modelBuffer: array<ModelData>;
+@group(0) @binding(4) var<storage, read> materialBuffer: array<MaterialData>;
 
 struct VertexInput {
     @location(0) position: vec3f,
@@ -42,17 +48,16 @@ struct VertexOutput {
 @vertex
 fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_index) instance_id: u32 ) -> VertexOutput {
     var out: VertexOutput;
-    let model_matrix = modelBuffer[instance_id].transform;
-    var worldPosition = model_matrix * vec4f(in.position, 1.0);
-    if (instance_id == 0u) {
-        worldPosition = model_matrix *vec4f(uUniformData.camera_world_position + in.position, 1.0);
-        
+    let modelData = modelBuffer[instance_id];
+    var worldPosition = modelData.transform * vec4f(in.position, 1.0);
+    if (modelData.isSkybox == 1u) {
+        worldPosition = modelData.transform * vec4f(uUniformData.camera_world_position + in.position, 1.0);
     }
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
     
-    out.tangent = (uUniformData.model_matrix * vec4f(in.tangent, 0.0)).xyz;
-	out.bitangent = (uUniformData.model_matrix * vec4f(in.bitangent, 0.0)).xyz;
-    out.normal = (uUniformData.model_matrix * vec4f(in.normal, 0.0)).xyz;
+    out.tangent = (modelData.transform * vec4f(in.tangent, 0.0)).xyz;
+	out.bitangent = (modelData.transform * vec4f(in.bitangent, 0.0)).xyz;
+    out.normal = (modelData.transform * vec4f(in.normal, 0.0)).xyz;
     out.viewDirection = uUniformData.camera_world_position - worldPosition.xyz;
     out.color = in.color;
     out.uv = in.uv;
@@ -80,11 +85,14 @@ fn perceivedLuminance(color: vec3f) -> f32 {
 
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
-    var normal_sample = textureSample(normal_texture, texture_sampler, in.uv).rgb;
-    if (in.instance_id == 0u) {
+    let modelData = modelBuffer[in.instance_id];
+    let materialData = materialBuffer[modelData.materialIndex];
+    var normal_sample = textureSample(textureArray[materialData.normalTextureIndex], texture_sampler, in.uv).rgb;
+    if (modelData.isSkybox == 1u) {
         normal_sample = in.normal;
     }
-    
+    // var normal_sample = in.normal;
+
     let localToWorld = mat3x3f(
         normalize(in.tangent),
         normalize(in.bitangent),
@@ -92,48 +100,42 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     );
     
     let worldN = localToWorld * (2.0*normal_sample - 1.0);
-    let N = normalize(mix(in.normal, worldN, 0.0));
+    let N = normalize(mix(in.normal, worldN, 1.0));
 
-    var albedo = textureSample(albedo_texture, texture_sampler, in.uv).rgb;
-    albedo = mix(vec3f(1.0), albedo, 0.0);
-
-    // var lightPositions = array(
-    //     // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
+    var lightPositions = array(
+        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
     //     // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
-    //     vec3f(5.0, 2.0, 5.0),
+        vec3f(5.0, 2.0, 5.0),
     //     // vec3f(5.0, -2.0, 5.0)
-    // );
+    );
     let V = normalize(in.viewDirection);
 
     let reflectedUVs = calculateReflectionUVs(-reflect(V, N));
-    let reflectedRadianceSample = textureSample(radiance_texture, texture_sampler, reflectedUVs).rgb;
-    let reflectedEnvironmentSample = textureSample(environment_texture, texture_sampler, reflectedUVs).rgb;
     let normalUVs = calculateReflectionUVs(N);
-    let normalEnvironmentSample = textureSample(environment_texture, texture_sampler, normalUVs).rgb;
-    let normalRadianceSample = textureSample(radiance_texture, texture_sampler, normalUVs).rgb;
+    
+    var albedo = textureSample(textureArray[materialData.diffuseTextureIndex], texture_sampler, in.uv).rgb;
+    albedo = mix(in.color, albedo, 1.0);
 
-    let skyBoxTexture = textureSample(environment_texture, texture_sampler, in.uv).rgb;
-    let skyBoxRadiance = textureSample(radiance_texture, texture_sampler, in.uv).rgb;
-    if (in.instance_id == 0u) {
-        // todo: make this less hacky (handle in different render pass with different shader maybe)
-        return vec4f(pow(skyBoxTexture, vec3f(2.2)), 1.0);
+    if (modelData.isSkybox == 1u) {
+        return vec4f(pow(albedo, vec3f(2.2)), 1.0);
     }
 
     let kh = 1.0;
     let kd = 1.0;
-    let ks = 0.5;
+    let ks = 0.0;
     let ka = 0.0;
 
     var color = vec3f(0.0);
     for (var i: i32 = 0; i < 1; i++) { // loop for every light (we do one environment sample)
-        // var L = normalize(lightPositions[i].xyz);
+        var L = normalize(lightPositions[i].xyz);
 
         // let H = normalize(L + V);
 
         let ambient = albedo;
-        // let diffuse = perceivedLuminance(normalRadianceSample) * albedo;
-        let diffuse = reflectedEnvironmentSample;
-        let specular = pow(max(0.0, 1.0 - dot(V, N)), kh) * perceivedLuminance(reflectedRadianceSample) * reflectedEnvironmentSample;
+        let diffuse = max(0.0, dot(N, L)) * albedo;
+        // let diffuse = reflectedEnvironmentSample;
+        let specular = vec3f(0.0,0.0,0.0);
+        // let specular = pow(max(0.0, 1.0 - dot(V, N)), kh) * perceivedLuminance(reflectedRadianceSample) * reflectedEnvironmentSample;
         color += (kd * diffuse) + (ks * specular) + (ka * ambient);
     }
 

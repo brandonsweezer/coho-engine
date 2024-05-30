@@ -6,6 +6,8 @@
 #include "ecs/components/TransformComponent.h"
 #include "ecs/components/MeshComponent.h"
 #include "ecs/components/Mesh.h"
+#include "ecs/components/MaterialComponent.h"
+#include "ecs/components/Material.h"
 #include <iostream>
 #include <memory>
 #include "utilities/MeshBuilder.h"
@@ -20,21 +22,61 @@
 int main() {
     Engine engine;
 
-    std::cout << "initializing models" << std::endl;
+    // making sky material
+    std::shared_ptr<Texture> skyTexture = std::make_shared<Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "quarry_cloudy.jpg"));
+    std::shared_ptr<Material> skyMaterial = std::make_shared<Material>();
+    skyMaterial->name = "sky";
+    skyMaterial->baseColor = glm::vec3(1.0);
+    skyMaterial->diffuseTexture = skyTexture;
+    skyMaterial->normalTexture = skyTexture;
+    skyMaterial->roughness = 0.5;
 
-    std::shared_ptr<Mesh> skyMesh = MeshBuilder::createUVSphere(10, 10, 1, true);
+    std::shared_ptr<Texture> brickDiffuseTex = std::make_shared<Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_diffuse.jpg"));
+    std::shared_ptr<Texture> brickNormalTex = std::make_shared<Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_normal.png"));
+
+    // making brick material
+    std::shared_ptr<Material> brickMaterial = std::make_shared<Material>();
+    brickMaterial->name = "brick";
+    brickMaterial->baseColor = glm::vec3(1.0);
+    brickMaterial->diffuseTexture = brickDiffuseTex;
+    brickMaterial->normalTexture = brickNormalTex;
+    brickMaterial->roughness = 0.5;
+
+    // making first sphere
+    std::shared_ptr<Entity> sphere1 = std::make_shared<Entity>();
+    sphere1->addComponent<TransformComponent>();
+    auto meshComponent = sphere1->addComponent<MeshComponent>();
+    auto sphereMesh = MeshBuilder::createUVSphere(10, 10, 2);
+    meshComponent->mesh = sphereMesh;
+    auto materialComponent = sphere1->addComponent<MaterialComponent>();
+    materialComponent->material = brickMaterial;
+
+    engine.entityManager->addEntity(sphere1, engine.renderer);
+
+    // making second sphere
+    std::shared_ptr<Entity> sphere2 = std::make_shared<Entity>();
+    auto transform2 = sphere2->addComponent<TransformComponent>();
+    transform2->transform->setPosition(glm::vec3(4.0, 0.0, 0.0));
+    auto meshComponent2 = sphere2->addComponent<MeshComponent>();
+    meshComponent2->mesh = sphereMesh;
+    auto materialComponent2 = sphere2->addComponent<MaterialComponent>();
+    materialComponent2->material = brickMaterial;
+
+    engine.entityManager->addEntity(sphere2, engine.renderer);
+
+    // making sky
     std::shared_ptr<Entity> sky = std::make_shared<Entity>();
-    sky->addComponent<MeshComponent>();
-    sky->getComponent<MeshComponent>()->mesh.reset();
-    sky->getComponent<MeshComponent>()->mesh = skyMesh;
     sky->addComponent<TransformComponent>();
+    auto meshComponent3 = sky->addComponent<MeshComponent>();
+    auto skyMesh = MeshBuilder::createUVSphere(10, 10, 1, true);
+    meshComponent3->mesh = skyMesh;
+    auto materialComponent3 = sky->addComponent<MaterialComponent>();
+    materialComponent3->material = skyMaterial;
+
     engine.entityManager->setSky(sky, engine.renderer);
 
-    std::shared_ptr<Entity> sphere = std::make_shared<Entity>();
-    sphere->addComponent<MeshComponent>();
-    sphere->getComponent<MeshComponent>()->mesh->setVertexData(MeshBuilder::createUVSphere(100,100,10)->getVertexData());
-    sphere->addComponent<TransformComponent>();
-    engine.entityManager->addEntity(sphere, engine.renderer);
+    
+
 
     engine.start();
 

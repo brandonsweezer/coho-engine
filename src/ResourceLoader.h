@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>
 #include <webgpu/webgpu.hpp>
 #include "ecs/components/Mesh.h"
+#include "ecs/components/Texture.h"
 
 #include <string>
 #include <vector>
@@ -15,18 +16,9 @@ public:
 
     static std::string loadShaderCode(std::string path);
     
-    static wgpu::Texture loadTexture(
+    static coho::Texture loadTexture(
         const std::string& path, 
-        const std::string& filename, 
-        wgpu::Device& device, 
-        wgpu::TextureView& texture_view,
-        int mipLevelCount = 8
-        );
-    static wgpu::Texture loadTexture(
-        const std::string& path, 
-        const std::string& filename, 
-        wgpu::Device& device,
-        int mipLevelCount = 8
+        const std::string& filename
         );
 
     static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);

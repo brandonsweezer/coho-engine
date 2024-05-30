@@ -1,10 +1,14 @@
+#pragma once
 #include "ResourceLoader.h"
 #include "tiny_obj_loader.h"
 #include "tiny_gltf.h"
 #include "stb_image.h"
+#include "stb_image_write.h"
 #include <webgpu/webgpu.hpp>
 
 #include "ecs/components/Mesh.h"
+#include "ecs/components/Texture.h"
+#include "ecs/components/Material.h"
 
 #include <iostream>
 #include <string>
@@ -13,129 +17,24 @@
 #include <sstream>
 #include <vector>
 namespace fs = std::filesystem;
-using namespace wgpu;
 using vec2 = glm::vec2;
 using vec3 = glm::vec3;
 using mat3x3 = glm::mat3x3;
 
+using namespace coho;
 
-// Auxiliary function for loadTexture
-static void writeMipMaps(
-	Device device,
-	Texture texture,
-	Extent3D textureSize,
-	uint32_t mipLevelCount,
-	const unsigned char* pixelData)
-{
-	Queue queue = device.getQueue();
-
-	// Arguments telling which part of the texture we upload to
-	ImageCopyTexture destination;
-	destination.texture = texture;
-	destination.origin = { 0, 0, 0 };
-	destination.aspect = TextureAspect::All;
-
-	// Arguments telling how the C++ side pixel memory is laid out
-	TextureDataLayout source;
-	source.offset = 0;
-
-	// Create image data
-	Extent3D mipLevelSize = textureSize;
-	std::vector<unsigned char> previousLevelPixels;
-	Extent3D previousMipLevelSize;
-	for (uint32_t level = 0; level < mipLevelCount; ++level) {
-		// Pixel data for the current level
-		std::vector<unsigned char> pixels(4 * mipLevelSize.width * mipLevelSize.height);
-		if (level == 0) {
-			// We cannot really avoid this copy since we need this
-			// in previousLevelPixels at the next iteration
-			memcpy(pixels.data(), pixelData, pixels.size());
-		}
-		else {
-			// Create mip level data
-			for (uint32_t i = 0; i < mipLevelSize.width; ++i) {
-				for (uint32_t j = 0; j < mipLevelSize.height; ++j) {
-					unsigned char* p = &pixels[4 * (j * mipLevelSize.width + i)];
-					// Get the corresponding 4 pixels from the previous level
-					unsigned char* p00 = &previousLevelPixels[4 * ((2 * j + 0) * previousMipLevelSize.width + (2 * i + 0))];
-					unsigned char* p01 = &previousLevelPixels[4 * ((2 * j + 0) * previousMipLevelSize.width + (2 * i + 1))];
-					unsigned char* p10 = &previousLevelPixels[4 * ((2 * j + 1) * previousMipLevelSize.width + (2 * i + 0))];
-					unsigned char* p11 = &previousLevelPixels[4 * ((2 * j + 1) * previousMipLevelSize.width + (2 * i + 1))];
-					// Average
-					p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
-					p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
-					p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
-					p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
-				}
-			}
-		}
-
-		// Upload data to the GPU texture
-		destination.mipLevel = level;
-		source.bytesPerRow = 4 * mipLevelSize.width;
-		source.rowsPerImage = mipLevelSize.height;
-		queue.writeTexture(destination, pixels.data(), pixels.size(), source, mipLevelSize);
-
-		previousLevelPixels = std::move(pixels);
-		previousMipLevelSize = mipLevelSize;
-		mipLevelSize.width /= 2;
-		mipLevelSize.height /= 2;
-	}
-
-	queue.release();
-}
-
-// overloaded loadTexture -> this one creates a `w as well.
-Texture ResourceLoader::loadTexture(
-        const std::string& path,
-        const std::string& filename,
-        wgpu::Device& device,
-        wgpu::TextureView& texture_view,
-        int mipLevelCount) {
-    Texture texture = loadTexture(path, filename, device, mipLevelCount);
-
-    std::cout << "texture view " << std::endl;
-    TextureViewDescriptor texViewDesc;
-    texViewDesc.arrayLayerCount = 1;
-    texViewDesc.baseArrayLayer = 0;
-    texViewDesc.aspect = TextureAspect::All;
-    texViewDesc.baseMipLevel = 0;
-    texViewDesc.mipLevelCount = mipLevelCount;
-    texViewDesc.dimension = TextureViewDimension::_2D;
-    texViewDesc.format = TextureFormat::RGBA8Unorm;
-    texViewDesc.label = filename.c_str();
-    texture_view = texture.createView(texViewDesc);
-
-    return texture;
-}
-
-// overloaded load texture. this one doesn't create a texture view
-Texture ResourceLoader::loadTexture(
-        const std::string& path,
-        const std::string& filename,
-        wgpu::Device& device,
-        int mipLevelCount) {
+Texture ResourceLoader::loadTexture(const std::string& path, const std::string& filename) {
+    Texture texture;
+    
     int width, height, channels;
     auto data = stbi_load(std::string(path + std::string("/") + filename).c_str(), &width, &height, &channels, 4);
-    if (data == nullptr) {
-        return nullptr;
-    }
 
-    TextureDescriptor textureDesc;
-    textureDesc.dimension = TextureDimension::_2D;
-    textureDesc.format = TextureFormat::RGBA8Unorm; // png/jpeg format
-    textureDesc.label = filename.c_str();
-    textureDesc.mipLevelCount = mipLevelCount;
-    textureDesc.sampleCount = 1;
-    textureDesc.size.width = width;
-    textureDesc.size.height = height;
-    textureDesc.size.depthOrArrayLayers = 1;
-    textureDesc.usage = TextureUsage::CopyDst | TextureUsage::TextureBinding;
-    textureDesc.viewFormatCount = 0;
-    textureDesc.viewFormats = nullptr;
-    Texture texture = device.createTexture(textureDesc);
-
-    writeMipMaps(device, texture, textureDesc.size, textureDesc.mipLevelCount, data);
+    texture.width = width;
+    texture.height = height;
+    texture.channels = channels;
+    size_t dataSize = width * height * 4;
+    texture.pixelData = std::vector<unsigned char>(data, data + dataSize);
+    texture.mipLevels = 8;
 
     stbi_image_free(data);
 
