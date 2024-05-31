@@ -468,7 +468,7 @@ bool Renderer::initBuffers() {
 
     bufferDesc.label = "material buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
-    bufferDesc.size = 2 * sizeof(MaterialData); // 100 materials
+    bufferDesc.size = 100 * sizeof(MaterialData); // 100 materials
     m_materialBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "uniform buffer";
@@ -592,7 +592,7 @@ bool Renderer::initBindGroups() {
     bindGroupEntries[4].binding = 4;
     bindGroupEntries[4].offset = 0;
     bindGroupEntries[4].buffer = m_materialBuffer;
-    bindGroupEntries[4].size = 2 * sizeof(MaterialData); // 2 materials
+    bindGroupEntries[4].size = 100 * sizeof(MaterialData); // 100 materials
 
     BindGroupDescriptor bindGroupDesc;
     bindGroupDesc.entries = bindGroupEntries.data();

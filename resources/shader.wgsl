@@ -91,7 +91,6 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     if (modelData.isSkybox == 1u) {
         normal_sample = in.normal;
     }
-    // var normal_sample = in.normal;
 
     let localToWorld = mat3x3f(
         normalize(in.tangent),
@@ -100,12 +99,14 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     );
     
     let worldN = localToWorld * (2.0*normal_sample - 1.0);
-    let N = normalize(mix(in.normal, worldN, 1.0));
+    let normalMixBool = i32(materialData.normalTextureIndex) == -1;
+    let normalMix = f32(normalMixBool);
+    let N = normalize(mix(worldN, in.normal, normalMix));
 
     var lightPositions = array(
-        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
+        vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
     //     // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
-        vec3f(5.0, 2.0, 5.0),
+        // vec3f(5.0, 2.0, 5.0),
     //     // vec3f(5.0, -2.0, 5.0)
     );
     let V = normalize(in.viewDirection);
@@ -114,7 +115,9 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let normalUVs = calculateReflectionUVs(N);
     
     var albedo = textureSample(textureArray[materialData.diffuseTextureIndex], texture_sampler, in.uv).rgb;
-    albedo = mix(in.color, albedo, 1.0);
+    let albedoMixBool = i32(materialData.diffuseTextureIndex) == -1;
+    let albedoMix = f32(albedoMixBool);
+    albedo = mix(albedo, materialData.baseColor, albedoMix);
 
     if (modelData.isSkybox == 1u) {
         return vec4f(pow(albedo, vec3f(2.2)), 1.0);
