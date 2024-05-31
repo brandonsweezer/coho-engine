@@ -14,6 +14,7 @@ public:
     std::vector<std::shared_ptr<Entity>> getRenderableEntities();
     int addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderer);
     int addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderer);
+    void addDefaultMaterial(std::shared_ptr<Renderer> renderer);
     int addMaterial(std::shared_ptr<Material> material, std::shared_ptr<Renderer> renderer);
     int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer> renderer);
     std::shared_ptr<Entity> getSky();

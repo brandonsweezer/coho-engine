@@ -20,6 +20,26 @@ EntityManager::~EntityManager() {
 
 }
 
+void EntityManager::addDefaultMaterial(std::shared_ptr<Renderer> renderer) {
+    std::shared_ptr<Texture> defaultTexture = std::make_shared<Texture>();
+    defaultTexture->channels = 4;
+    defaultTexture->width = 1;
+    defaultTexture->height = 1;
+    defaultTexture->mipLevels = 1;
+    defaultTexture->pixelData = std::vector<unsigned char>(1);
+
+    // register default/blank texture
+    // register default/blank material
+    std::shared_ptr<Material> defaultMaterial = std::make_shared<Material>();
+    defaultMaterial->baseColor = glm::vec3(1.0, 0.0, 1.0);
+    defaultMaterial->name = "default material";
+    defaultMaterial->diffuseTexture = defaultTexture;
+    defaultMaterial->normalTexture = defaultTexture;
+    defaultMaterial->roughness = 1.0;
+
+    addMaterial(defaultMaterial, renderer);
+}
+
 int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderer) {
     if (entity->hasComponent<InstanceComponent>()) {
         return addInstance(entity, renderer);
@@ -33,11 +53,11 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
     m_renderableEntities.push_back(entity);
 
     Renderer::ModelData modelData;
+    modelData.materialIndex = 0; // default material
 
     // write the transform to the model data
     glm::mat4x4 transform = entity->getComponent<TransformComponent>()->transform->getMatrix();
     modelData.transform = transform;
-    modelData.materialIndex = (uint32_t)-1;
     if (entity->hasComponent<MaterialComponent>()) {
         // write the material to the model data
         std::shared_ptr<Material> material = entity->getComponent<MaterialComponent>()->material;
@@ -77,6 +97,7 @@ int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<R
     Renderer::ModelData modelData;
     glm::mat4x4 transform = entity->getComponent<TransformComponent>()->transform->getMatrix();
     modelData.transform = transform;
+    modelData.materialIndex = 0;
 
     if (prototype->hasComponent<MaterialComponent>()) {
         // write the material to the model data
@@ -103,13 +124,16 @@ int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer>
 
     glm::mat4x4 transform = sky->getComponent<TransformComponent>()->transform->getMatrix();
     Renderer::ModelData modelData;
+    modelData.materialIndex = 0;
     modelData.transform = transform;
     modelData.isSkybox = 1;
-    std::shared_ptr<Material> skymaterial = sky->getComponent<MaterialComponent>()->material;
-    if (skymaterial->materialIndex == -1) {
-        skymaterial->materialIndex = addMaterial(skymaterial, renderer);
+    if (sky->hasComponent<MaterialComponent>()) {
+        std::shared_ptr<Material> skymaterial = sky->getComponent<MaterialComponent>()->material;
+        if (skymaterial->materialIndex == -1) {
+            skymaterial->materialIndex = addMaterial(skymaterial, renderer);
+        }
+        modelData.materialIndex = skymaterial->materialIndex;
     }
-    modelData.materialIndex = skymaterial->materialIndex;
 
     std::vector<Renderer::ModelData> mds = { modelData };
     renderer->writeModelBuffer(mds, m_nextModelBufferOffset);

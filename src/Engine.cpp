@@ -11,6 +11,8 @@ Engine::Engine() {
     renderer = std::make_shared<Renderer>();
     entityManager = std::make_shared<EntityManager>();
     inputManager = std::make_shared<InputManager>();
+
+    entityManager->addDefaultMaterial(renderer);
 }
 
 Engine::~Engine() {

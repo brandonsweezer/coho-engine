@@ -86,7 +86,9 @@ fn perceivedLuminance(color: vec3f) -> f32 {
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let modelData = modelBuffer[in.instance_id];
+    // materialIndex will be 0 if unset (default material)
     let materialData = materialBuffer[modelData.materialIndex];
+    // normalTextureIndex will be 0 if unset (default texture)
     var normal_sample = textureSample(textureArray[materialData.normalTextureIndex], texture_sampler, in.uv).rgb;
     if (modelData.isSkybox == 1u) {
         normal_sample = in.normal;
@@ -99,7 +101,7 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     );
     
     let worldN = localToWorld * (2.0*normal_sample - 1.0);
-    let normalMixBool = i32(materialData.normalTextureIndex) == -1;
+    let normalMixBool = materialData.normalTextureIndex == 0u;
     let normalMix = f32(normalMixBool);
     let N = normalize(mix(worldN, in.normal, normalMix));
 
@@ -114,8 +116,9 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let reflectedUVs = calculateReflectionUVs(-reflect(V, N));
     let normalUVs = calculateReflectionUVs(N);
     
+    // diffuseTextureIndex will be 0 if unset (default texture)
     var albedo = textureSample(textureArray[materialData.diffuseTextureIndex], texture_sampler, in.uv).rgb;
-    let albedoMixBool = i32(materialData.diffuseTextureIndex) == -1;
+    let albedoMixBool = materialData.diffuseTextureIndex == 0u;
     let albedoMix = f32(albedoMixBool);
     albedo = mix(albedo, materialData.baseColor, albedoMix);
 

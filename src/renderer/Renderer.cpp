@@ -290,7 +290,7 @@ bool Renderer::initDevice() {
     requiredLimits.limits.maxTextureDimension1D = 8192;
     requiredLimits.limits.maxTextureDimension2D = 8192;
     requiredLimits.limits.maxTextureArrayLayers = 1;
-    requiredLimits.limits.maxSampledTexturesPerShaderStage = 6;
+    requiredLimits.limits.maxSampledTexturesPerShaderStage = 100;
     requiredLimits.limits.maxSamplersPerShaderStage = 2;
 
     DeviceDescriptor deviceDesc;
@@ -337,8 +337,8 @@ int Renderer::registerMaterial(std::shared_ptr<coho::Material> material) {
     MaterialData md;
     md.baseColor = material->baseColor;
     md.roughness = material->roughness;
-    md.diffuseTextureIndex = (uint32_t)-1;
-    md.normalTextureIndex = (uint32_t)-1;
+    md.diffuseTextureIndex = 0;
+    md.normalTextureIndex = 0;
 
     if (material->diffuseTexture != nullptr) {
         md.diffuseTextureIndex = registerTexture(material->diffuseTexture, material->name + "(diffuse)", material->diffuseTexture->mipLevels);
