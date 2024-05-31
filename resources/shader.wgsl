@@ -105,9 +105,9 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
 
     var lightPositions = array(
         vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
-    //     // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
+        // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
         // vec3f(5.0, 2.0, 5.0),
-    //     // vec3f(5.0, -2.0, 5.0)
+        vec3f(5.0, -2.0, 5.0)
     );
     let V = normalize(in.viewDirection);
 
@@ -129,7 +129,7 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let ka = 0.0;
 
     var color = vec3f(0.0);
-    for (var i: i32 = 0; i < 1; i++) { // loop for every light (we do one environment sample)
+    for (var i: i32 = 0; i < 2; i++) { // loop for every light (we do one environment sample)
         var L = normalize(lightPositions[i].xyz);
 
         // let H = normalize(L + V);

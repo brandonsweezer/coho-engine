@@ -75,16 +75,15 @@ int main() {
 
     engine.entityManager->setSky(sky, engine.renderer);
 
-    std::vector<VertexData> vds;
-    ResourceLoader::loadObj(RESOURCE_DIR, "cube.obj", vds);
     std::shared_ptr<Entity> cube = std::make_shared<Entity>();
     auto cubeTransform = cube->addComponent<TransformComponent>();
     cubeTransform->transform->setPosition(vec3(-4.0, 0.0, 0.0));
     auto cubeMesh = cube->addComponent<MeshComponent>();
-    cubeMesh->mesh->setVertexData(vds);
+    cubeMesh->mesh = MeshBuilder::createCube(1.0);
     auto cubeMat = cube->addComponent<MaterialComponent>();
-    cubeMat->material->baseColor = vec3(1.0, 0.0, 0.0);
-    cubeMat->material->name = "non-textured material";
+    cubeMat->material = brickMaterial;
+    // cubeMat->material->baseColor = vec3(1.0, 0.0, 0.0);
+    // cubeMat->material->name = "non-textured material";
     engine.entityManager->addEntity(cube, engine.renderer);
 
 
