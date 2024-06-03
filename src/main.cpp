@@ -97,6 +97,7 @@ int main() {
     cubeMat2->material->normalTexture = brickNormalTex;
 
     std::shared_ptr<Entity> cube3 = std::make_shared<Entity>();
+    cube3->instanceCount = 250000;
     auto cubeTransform3 = cube3->addComponent<TransformComponent>();
     cubeTransform3->transform->setPosition(vec3(8.0, 0.0, 0.0));
     cubeTransform3->transform->setScale(vec3(4.0));
@@ -112,8 +113,6 @@ int main() {
     engine.entityManager->addEntity(cube1, engine.renderer);
     engine.entityManager->addEntity(cube2, engine.renderer);
     engine.entityManager->addEntity(cube3, engine.renderer);
-
-
 
     engine.start();
 

@@ -82,6 +82,8 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
     return id;
 }
 
+// todo: pass array of instances and write to model buffer en-mass 
+// these sequential queue operations are killer
 int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderer) {
     if (!entity->hasComponent<InstanceComponent>()) {
         std::cout << "ERROR: No instance component found on entity!" << std::endl;

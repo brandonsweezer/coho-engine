@@ -1,6 +1,8 @@
 #pragma once
 #include "Engine.h"
 #include "constants.h"
+#include "input/InputManager.h"
+#include "input/InputEvents.h"
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 using vec2 = glm::vec2;
@@ -13,6 +15,7 @@ Engine::Engine() {
     inputManager = std::make_shared<InputManager>();
 
     entityManager->addDefaultMaterial(renderer);
+    setupBindings();
 }
 
 Engine::~Engine() {
@@ -32,20 +35,41 @@ void Engine::start() {
 }
 
 void Engine::tick() {
+    float newTime = SDL_GetTicks64() / 1000.0f;
+    m_deltaTime = newTime - m_time;
+    m_time = newTime;
+    
     handleInput();
-    update();
-    draw();
+
+    if (m_isSimulating) {
+        update();
+    }
+
+    if (m_isDrawing) {
+        draw();
+    }
 }
 
 void Engine::update() {
-    if (!m_isSimulating) return;
+    updateCamera();
+}
+
+void Engine::updateCamera() {
+    if (renderer->m_dragState.active) {
+        vec2 currentMouse = inputManager->getMousePos();
+		vec2 delta = (currentMouse - renderer->m_dragState.startMouse) * renderer->m_dragState.sensitivity;
+		renderer->m_camera.angles = renderer->m_dragState.startCameraState.angles + delta;
+		// Clamp to avoid going too far when orbitting up/down
+		renderer->m_camera.angles.y = glm::clamp(renderer->m_camera.angles.y, -PI / 2 + 1e-5f, PI / 2 - 1e-5f);
+
+		renderer->m_dragState.velocity = delta - renderer->m_dragState.previousDelta;
+		renderer->m_dragState.previousDelta = delta;
+        renderer->updateViewMatrix();
+    }
 }
 
 void Engine::draw() {
-    if (!m_isDrawing) return;
-
-    float time = SDL_GetTicks64() / 1000.0f;
-    renderer->onFrame(entityManager->getRenderableEntities(), entityManager->getSky(), time);
+    renderer->onFrame(entityManager->getRenderableEntities(), entityManager->getSky(), m_time);
 }
 
 void Engine::shutdown() {
@@ -56,21 +80,24 @@ bool Engine::isRunning() {
     return m_isRunning;
 }
 
-void Engine::handleInput() {
-    if (renderer->m_dragState.active) {
-        int xpos, ypos;
-        SDL_GetMouseState(&xpos, &ypos);
-        vec2 currentMouse = vec2((float)xpos, (float)ypos);
-		vec2 delta = (currentMouse - renderer->m_dragState.startMouse) * renderer->m_dragState.sensitivity;
-		renderer->m_camera.angles = renderer->m_dragState.startCameraState.angles + delta;
-		// Clamp to avoid going too far when orbitting up/down
-		renderer->m_camera.angles.y = glm::clamp(renderer->m_camera.angles.y, -PI / 2 + 1e-5f, PI / 2 - 1e-5f);
-
-		renderer->m_dragState.velocity = delta - renderer->m_dragState.previousDelta;
-		renderer->m_dragState.previousDelta = delta;
+void Engine::setupBindings() {
+    inputManager->subscribeToEvent(InputEvent::SCROLL, [&]() {
+        auto wheel = inputManager->getScrollInfo();
+        renderer->m_camera.zoom += wheel.y * .1f;
         renderer->updateViewMatrix();
-    }
+    });
+    inputManager->subscribeToEvent(InputEvent::MOUSE_DOWN, [&]() {
+        renderer->m_dragState.active = true;
+        renderer->m_dragState.startCameraState = renderer->m_camera;
+        renderer->m_dragState.startMouse = inputManager->getMousePos();
+    });
+    inputManager->subscribeToEvent(InputEvent::MOUSE_UP, [&]() {
+        renderer->m_dragState.active = false;
+    });
 
+}
+
+void Engine::handleInput() {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
@@ -87,18 +114,19 @@ void Engine::handleInput() {
                 }
                 break;
             case SDL_MOUSEBUTTONDOWN:
-                renderer->m_dragState.active = true;
-                renderer->m_dragState.startCameraState = renderer->m_camera;
-                int xpos, ypos;
-                SDL_GetMouseState(&xpos, &ypos);
-                renderer->m_dragState.startMouse = glm::vec2((float)xpos, (float)ypos);
+                inputManager->handleMousePress(e.button);
                 break;
             case SDL_MOUSEBUTTONUP:
-                renderer->m_dragState.active = false;
+                inputManager->handleMouseRelease(e.button);
                 break;
             case SDL_MOUSEWHEEL:
-                renderer->m_camera.zoom += e.wheel.y * .1f;
-                renderer->updateViewMatrix();
+                inputManager->handleScroll(e.wheel);
+                break;
+            case SDL_KEYDOWN:
+                inputManager->setKeyDown(e.key.keysym.sym);
+                break;
+            case SDL_KEYUP:
+                inputManager->setKeyUp(e.key.keysym.sym);
                 break;
             default:
                 break;

@@ -22,8 +22,14 @@ public:
     std::shared_ptr<InputManager> inputManager = nullptr;
 private:
     void handleInput();
+    void updateCamera();
+
+    void setupBindings();
 private:
     bool m_isRunning = false;
     bool m_isSimulating = false;
     bool m_isDrawing = false;
+
+    float m_time = 0.0;
+    float m_deltaTime = 0.0;
 };
