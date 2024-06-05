@@ -44,11 +44,11 @@ public:
     int registerTexture(std::shared_ptr<coho::Texture> texture, std::string filename, int mipLevelCount = 8);
 
     struct Camera {
+        glm::mat4x4 transform;
         glm::vec3 position;
         glm::vec3 forward;
-        glm::vec2 angles = { 0.0, 0.0 };
-        
-        float zoom = -3.5;
+        glm::vec3 right;
+        glm::vec3 up;
     };
     Camera m_camera;
 
@@ -67,6 +67,8 @@ public:
 
     void updateProjectionMatrix();
     void updateViewMatrix();
+    glm::vec2 getScreenDimensions();
+    SDL_Window* getWindow();
 
 private:
     bool init();
@@ -116,7 +118,6 @@ private:
     bool m_isRunning = true;
 
     struct UniformData {
-        glm::mat4x4 model_matrix;
         glm::mat4x4 view_matrix;
         glm::mat4x4 projection_matrix;
         glm::vec3 camera_world_position;

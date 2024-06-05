@@ -1,5 +1,4 @@
 struct UniformData {
-    model_matrix: mat4x4f,
     view_matrix: mat4x4f,
     projection_matrix: mat4x4f,
     camera_world_position: vec3f,

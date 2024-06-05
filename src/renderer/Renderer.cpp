@@ -248,6 +248,7 @@ bool Renderer::initWindowAndSurface() {
     if (SDL_Init(SDL_INIT_VIDEO) == -1) {
         return false;
     }
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     std::cout << "initializing window" << std::endl;
     m_window = SDL_CreateWindow("Renderer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, m_screenWidth, m_screenHeight, SDL_WINDOW_RESIZABLE);
@@ -479,8 +480,6 @@ bool Renderer::initBuffers() {
     m_uniformData.time = 1.0;
     float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
     m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 1000.0f);
-
-    m_uniformData.model_matrix = mat4x4(1.0);
 
     m_queue.writeBuffer(m_uniformBuffer, 0, &m_uniformData, sizeof(UniformData));
     updateViewMatrix();
@@ -800,16 +799,8 @@ void Renderer::updateProjectionMatrix() {
 }
 
 void Renderer::updateViewMatrix() {
-    // TODO: implement trackball camera controls 
-    // arcball implementation
-    float cx = cos(m_camera.angles.x);
-	float cy = cos(m_camera.angles.y);
-	float sx = sin(m_camera.angles.x);
-	float sy = sin(m_camera.angles.y);
-
-	vec3 position = vec3(cx * cy, sy, sx * cy) * std::exp(-m_camera.zoom);
-    m_uniformData.camera_world_position = position;
-	m_uniformData.view_matrix = glm::lookAt(position, vec3(0.0f), vec3(0, 1, 0));
+    m_uniformData.camera_world_position = m_camera.position;
+    m_uniformData.view_matrix = glm::lookAt(m_camera.position - m_camera.forward, m_camera.position, m_camera.up);
 	m_queue.writeBuffer(m_uniformBuffer,
 		0,
 		&m_uniformData,
@@ -829,4 +820,12 @@ void Renderer::resizeWindow(int new_width, int new_height) {
     initSurfaceTexture();
 
     updateProjectionMatrix();
+}
+
+glm::vec2 Renderer::getScreenDimensions() {
+    return glm::vec2(m_screenWidth, m_screenHeight);
+}
+
+SDL_Window* Renderer::getWindow() {
+    return m_window;
 }

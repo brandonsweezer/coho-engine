@@ -13,11 +13,12 @@
 #include <glm/ext.hpp>
 
 EntityManager::EntityManager() {
-    
+    camera = std::make_shared<Entity>();
+    camera->addComponent<TransformComponent>();
 }
 
 EntityManager::~EntityManager() {
-
+    camera.reset();
 }
 
 void EntityManager::addDefaultMaterial(std::shared_ptr<Renderer> renderer) {

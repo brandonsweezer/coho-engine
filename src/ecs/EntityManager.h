@@ -18,6 +18,8 @@ public:
     int addMaterial(std::shared_ptr<Material> material, std::shared_ptr<Renderer> renderer);
     int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer> renderer);
     std::shared_ptr<Entity> getSky();
+
+    std::shared_ptr<Entity> camera;
 private:
 
     std::vector<std::shared_ptr<Entity>> m_entities;

@@ -25,6 +25,7 @@ private:
     void updateCamera();
 
     void setupBindings();
+    void wrapCursor(SDL_Event e);
 private:
     bool m_isRunning = false;
     bool m_isSimulating = false;
@@ -32,4 +33,9 @@ private:
 
     float m_time = 0.0;
     float m_deltaTime = 0.0;
+
+    InputManager::MouseState m_lastMouseState;
+    float m_sensitivity = 0.05;
+    float m_rotationSensitivity = 0.001;
+    float m_moveSpeed = 25.0;
 };
