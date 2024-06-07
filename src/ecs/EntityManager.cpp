@@ -75,9 +75,14 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
 
     // write the mesh vertices to the vertex buffer
     std::shared_ptr<Mesh> mesh = entity->getComponent<MeshComponent>()->mesh;
-    std::vector<Mesh::VertexData> vds = mesh->getVertexData();
+    std::vector<Mesh::VertexData> vds = mesh->m_vertexData;
     int vertexBufferOffset = renderer->addMeshToVertexBuffer(vds);
     mesh->setVertexBufferOffset(vertexBufferOffset);
+    if (mesh->isIndexed) {
+        std::vector<uint32_t> indices = mesh->getIndexData();
+        int indexBufferOffset = renderer->addMeshToIndexBuffer(indices);
+        mesh->setIndexBufferOffset(indexBufferOffset);
+    }
 
     // return the id for this entity
     return id;
@@ -143,9 +148,15 @@ int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer>
     m_nextModelBufferOffset += sizeof(Renderer::ModelData);
 
     std::shared_ptr<Mesh> mesh = sky->getComponent<MeshComponent>()->mesh;
-    std::vector<Mesh::VertexData> vds = mesh->getVertexData();
+    std::vector<Mesh::VertexData> vds = mesh->m_vertexData;
     int vertexBufferOffset = renderer->addMeshToVertexBuffer(vds);
     mesh->setVertexBufferOffset(vertexBufferOffset);
+    if (mesh->isIndexed) {
+        std::cout << "adding indices" << std::endl;
+        std::vector<uint32_t> indices = mesh->getIndexData();
+        int indexBufferOffset = renderer->addMeshToIndexBuffer(indices);
+        mesh->setIndexBufferOffset(indexBufferOffset);
+    }
 
     return id;
 }

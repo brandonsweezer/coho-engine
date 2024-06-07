@@ -12,7 +12,12 @@ using VertexData = Mesh::VertexData;
 
 class ResourceLoader {
 public:
-    
+    struct ImageData {
+        unsigned char * data;
+        int width;
+        int height;
+        int channels;
+    };
 
     static std::string loadShaderCode(std::string path);
     
@@ -24,4 +29,8 @@ public:
     static bool loadObj(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
     
     bool loadGLTF(const std::string& path, const std::string& filename, std::vector<VertexData>& vertexData);
+
+    static char* loadBinaryFile(const std::string& path, const std::string& filename, int& filesize);
+    static ImageData* loadImage(const std::string& path, const std::string& filename);
+
 };

@@ -8,4 +8,5 @@ public:
     TransformComponent();
     ~TransformComponent();
     std::shared_ptr<Transform> transform;
+    int modelBufferOffset;
 };

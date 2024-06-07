@@ -146,10 +146,15 @@ void Renderer::geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities)
     renderPassEncoder.setPipeline(m_renderPipeline);
     renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
     renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
+    renderPassEncoder.setIndexBuffer(m_indexBuffer, IndexFormat::Uint32, 0, m_indexCount * sizeof(uint32_t));
 
     for (auto entity : entities) {
         auto mesh = entity->getComponent<MeshComponent>()->mesh;
-        renderPassEncoder.draw(mesh->getVertexCount(), entity->instanceCount, mesh->getVertexBufferOffset(), entity->getId());
+        if (mesh->isIndexed) {
+            renderPassEncoder.drawIndexed(mesh->getIndexCount(), entity->instanceCount, mesh->getIndexBufferOffset(), mesh->getVertexBufferOffset(), entity->getId());
+        } else {
+            renderPassEncoder.draw(mesh->getVertexCount(), entity->instanceCount, mesh->getVertexBufferOffset(), entity->getId());
+        }
     }
 
     renderPassEncoder.end();
@@ -212,6 +217,9 @@ void Renderer::releaseBindGroups() {
 }
 
 void Renderer::releaseBuffers() {
+    m_indexBuffer.destroy();
+    m_indexBuffer.release();
+
     m_vertexBuffer.destroy();
     m_vertexBuffer.release();
     m_uniformBuffer.destroy();
@@ -331,6 +339,16 @@ int Renderer::addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData) {
     m_queue.writeBuffer(m_vertexBuffer, offset, vertexData.data(), newDataSize);
     m_vertexCount = (int)(m_vertexCount + vertexData.size());
     return vertexOffset;
+}
+
+// returns the index offset of this mesh in the index buffer.
+int Renderer::addMeshToIndexBuffer(std::vector<uint32_t> indexData) {
+    int indexOffset = m_indexCount;
+    int offset = m_indexCount * sizeof(uint32_t);
+    int newDataSize = (int)(indexData.size() * sizeof(uint32_t));
+    m_queue.writeBuffer(m_indexBuffer, offset, indexData.data(), newDataSize);
+    m_indexCount = (int)(m_indexCount + indexData.size());
+    return indexOffset;
 }
 
 // returns the index of the material in the material buffer
@@ -461,6 +479,12 @@ bool Renderer::initBuffers() {
     bufferDesc.usage = BufferUsage::Vertex | BufferUsage::CopyDst;
     bufferDesc.size = 1000000 * sizeof(VertexData); // 1,000,000 vertices
     m_vertexBuffer = m_device.createBuffer(bufferDesc);
+
+    BufferDescriptor indexBuffer;
+    bufferDesc.label = "index buffer";
+    bufferDesc.usage = BufferUsage::Index | BufferUsage::CopyDst;
+    bufferDesc.size = 1000000 * sizeof(VertexData); // 1,000,000 indices
+    m_indexBuffer = m_device.createBuffer(bufferDesc);
 
     bufferDesc.label = "model buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;

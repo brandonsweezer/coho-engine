@@ -14,11 +14,20 @@ using vec3 = glm::vec3;
 Engine::Engine() {
     std::cout << "initializing SDL" << std::endl;
     SDL_SetMainReady();
+    
+    std::cout << "initializing renderer" << std::endl;
     renderer = std::make_shared<Renderer>();
+    
+    std::cout << "initializing entity manager" << std::endl;
     entityManager = std::make_shared<EntityManager>();
+    entityManager->addDefaultMaterial(renderer);
+    
     inputManager = std::make_shared<InputManager>();
 
-    entityManager->addDefaultMaterial(renderer);
+    std::cout << "initializing terrainManager" << std::endl;
+    terrainManager = std::make_shared<TerrainManager>();
+    entityManager->addEntity(terrainManager->getTerrainPatch(), renderer);
+
     setupBindings();
 }
 
@@ -26,6 +35,7 @@ Engine::~Engine() {
     renderer.reset();
     entityManager.reset();
     inputManager.reset();
+    terrainManager.reset();
 }
 
 void Engine::start() {
@@ -97,6 +107,7 @@ void Engine::updateCamera() {
     }
 
     // first person camera implementation
+    // todo: clamp pitch between -90 and 90 degrees
     auto mouseState = inputManager->getMouseState();
     auto cameraTransform = entityManager->camera->getComponent<TransformComponent>()->transform;
     vec2 pixelDelta = (mouseState.pos - m_lastMouseState.pos);

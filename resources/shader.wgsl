@@ -105,10 +105,10 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     let N = normalize(mix(worldN, in.normal, normalMix));
 
     var lightPositions = array(
-        vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
+        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
         // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
-        // vec3f(5.0, 2.0, 5.0),
-        vec3f(5.0, -2.0, 5.0)
+        vec3f(1.0, 1.0, 1.0),
+        // vec3f(5.0, -2.0, 5.0)
     );
     let V = normalize(in.viewDirection);
 
@@ -119,16 +119,16 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     var albedo = textureSample(textureArray[materialData.diffuseTextureIndex], texture_sampler, in.uv).rgb;
     let albedoMixBool = materialData.diffuseTextureIndex == 0u;
     let albedoMix = f32(albedoMixBool);
-    albedo = mix(albedo, materialData.baseColor, albedoMix);
+    albedo = mix(albedo, materialData.baseColor * in.color, albedoMix);
 
     if (modelData.isSkybox == 1u) {
         return vec4f(pow(albedo, vec3f(2.2)), 1.0);
     }
 
-    let kh = 1.0;
-    let kd = 1.0;
-    let ks = 0.0;
-    let ka = 0.0;
+    let kh = 60.0;
+    let kd = 0.8;
+    let ks = 0.5;
+    let ka = 0.2;
 
     var color = vec3f(0.0);
     for (var i: i32 = 0; i < 2; i++) { // loop for every light (we do one environment sample)

@@ -246,6 +246,59 @@ std::shared_ptr<Mesh> MeshBuilder::createUVSphere(int rows, int columns, float r
     return uvSphereMesh;
 }
 
+std::shared_ptr<Mesh> MeshBuilder::createPlane(float width, float height, uint32_t indicesX, uint32_t indicesY) {
+    float stepX = width / indicesX;
+    float stepY = height / indicesY;
+
+    std::vector<Mesh::VertexData> vertices;
+    for (uint32_t y = 0; y <= indicesY; ++y) {
+        for (uint32_t x = 0; x <= indicesX; ++x) {
+            // Calculate the position of the vertex
+            float xPos = x * stepX - (width / 2.0f);
+            // float xPos = x * stepX;
+            float yPos = 0.0f;
+            float zPos = y * stepY - (height / 2.0f);
+            // float zPos = y * stepY;
+
+            // Create a vertex with position, uv, and normal data
+            Mesh::VertexData vd;
+            vd.position = glm::vec3(xPos, yPos, zPos);
+            vd.uv = glm::vec2((float)x / (float)indicesX, (float)y / (float)indicesY);
+            vd.normal = glm::vec3(0, 1, 0);
+
+            // Add the vertex to the vertices vector
+            vertices.push_back(vd);
+        }
+    }
+
+    std::vector<uint32_t> indices;
+    // Generate indices for the plane mesh using triangles
+    for (int y = 0; y < (int)indicesY - 1; ++y) {
+        for (int x = 0; x < (int)indicesX; ++x) {
+            // Calculate the indices for the triangles
+            int topLeft = y * ((int)indicesX + 1) + x;
+            int topRight = topLeft + 1;
+            int bottomLeft = (y + 1) * ((int)indicesX + 1) + x;
+            int bottomRight = bottomLeft + 1;
+
+            // First triangle
+            indices.push_back(topLeft);
+            indices.push_back(bottomLeft);
+            indices.push_back(topRight);
+
+            // Second triangle
+            indices.push_back(topRight);
+            indices.push_back(bottomLeft);
+            indices.push_back(bottomRight);
+        }
+    }
+    
+    std::shared_ptr<Mesh> planeMesh = std::make_shared<Mesh>();
+    planeMesh->setVertexData(vertices);
+    planeMesh->setIndexData(indices);
+    return planeMesh;
+}
+
 vec3 MeshBuilder::positionFromSphericalCoords(float radius, float pitch, float heading) {
     return vec3(
         radius * cosf(glm::radians(pitch)) * sinf(glm::radians(heading)),

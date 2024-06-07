@@ -34,7 +34,6 @@ template <typename T>
 std::shared_ptr<T> Entity::addComponent() {
     auto typeIndex = std::type_index(typeid(T));
     std::shared_ptr<T> component = std::make_shared<T>();
-
     m_components[typeIndex] = component;
     return component;
 }

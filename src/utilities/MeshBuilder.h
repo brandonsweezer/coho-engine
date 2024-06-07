@@ -7,6 +7,7 @@ class MeshBuilder {
 public:
     static std::shared_ptr<Mesh> createUVSphere(int rows, int columns, float radius, bool inFacing = false);
     static std::shared_ptr<Mesh> createCube(int size, bool inFacing = false);
+    static std::shared_ptr<Mesh> createPlane(float width, float height, uint32_t indicesX, uint32_t indicesY);
 private:
     static glm::vec3 positionFromSphericalCoords(float radius, float pitch, float heading);
     static glm::vec2 uvFromSphericalCoords(float pitch, float heading);

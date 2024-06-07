@@ -38,6 +38,7 @@ public:
     void writeModelBuffer(std::vector<ModelData> modelData, int offset);
     void writeMaterialBuffer(std::vector<MaterialData> materialData, int offset);
     int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
+    int addMeshToIndexBuffer(std::vector<uint32_t> indexData);
     void resizeWindow(int new_width, int new_height);
 
     int registerMaterial(std::shared_ptr<coho::Material> material);
@@ -144,6 +145,9 @@ private:
     wgpu::RenderPipeline m_renderPipeline = nullptr;
 
     std::unique_ptr<wgpu::ErrorCallback> m_deviceErrorCallback;
+
+    wgpu::Buffer m_indexBuffer = nullptr;
+    int m_indexCount = 0;
 
     wgpu::Buffer m_vertexBuffer = nullptr;
     int m_vertexCount = 0;

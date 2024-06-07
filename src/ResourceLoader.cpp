@@ -152,3 +152,48 @@ bool ResourceLoader::loadObj(const std::string& path, const std::string& filenam
 
     return true;
 }
+
+char* loadBinaryFile(const std::string& path, const std::string& filename, int& fileSize) {
+    std::ifstream file (std::string(path + "/" + filename), std::ios::in|std::ios::binary|std::ios::ate);
+    if (file.is_open())
+    {
+        fileSize = file.tellg();
+        char * memblock = new char [fileSize];
+        file.seekg (0, std::ios::beg);
+        file.read (memblock, fileSize);
+        file.close();
+
+        std::cout << "the entire file content is in memory" << std::endl;
+        return memblock;
+    }
+    else std::cout << "Unable to open file" << std::endl;
+    return nullptr;
+}
+
+ResourceLoader::ImageData* ResourceLoader::loadImage(const std::string& path, const std::string& filename) {
+    int width, height, channels;
+    
+    unsigned char *data = stbi_load(std::string(path + "/" + filename).c_str(), &width, &height, &channels, 0);
+    if (data == nullptr) {
+        std::cout << "failed to load image: " << path << "/" << filename << std::endl;
+        stbi_image_free(data);
+        return nullptr;
+    }
+    size_t image_size = width * height * channels;
+    unsigned char *image_copy = (unsigned char *)malloc(image_size);    
+    if (image_copy == nullptr) {
+        std::cout << "failed to allocate memory for image copy: " << path << "/" << filename << std::endl;
+        stbi_image_free(data);
+        return nullptr;
+    }
+
+    memcpy(image_copy, data, image_size);
+
+    stbi_image_free(data);
+    ImageData* imgData = new ImageData();
+    imgData->data = image_copy;
+    imgData->width = width;
+    imgData->height = height;
+    imgData->channels = channels;
+    return imgData;
+}

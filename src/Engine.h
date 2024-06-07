@@ -2,6 +2,7 @@
 #include "renderer/Renderer.h"
 #include "ecs/EntityManager.h"
 #include "input/InputManager.h"
+#include "terrain/TerrainManager.h"
 
 class Engine {
 public:
@@ -20,6 +21,7 @@ public:
     std::shared_ptr<Renderer> renderer = nullptr;
     std::shared_ptr<EntityManager> entityManager = nullptr;
     std::shared_ptr<InputManager> inputManager = nullptr;
+    std::shared_ptr<TerrainManager> terrainManager = nullptr;
 private:
     void handleInput();
     void updateCamera();
