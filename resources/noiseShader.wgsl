@@ -159,6 +159,10 @@ fn mapZeroToOne(f: f32) -> f32 {
     return (f + 1.0) / 2.0;
 }
 
+fn mapZeroToOneV(v: vec3f) -> vec3f {
+    return vec3(mapZeroToOne(v.x), mapZeroToOne(v.y), mapZeroToOne(v.z));
+}
+
 @vertex
 fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_index) instance_id: u32 ) -> VertexOutput {
     var out: VertexOutput;
@@ -180,13 +184,31 @@ fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_in
 	return out;
 }
 
-fn fbm(x: vec3f, H: f32, numOctaves: u32) -> vec3f {
+fn fbmV(x: vec3f, H: f32, numOctaves: u32, initialFrequency: f32) -> vec3f {
     var G = exp2(-H);
-    var f = 0.001;
-    var a = 1.0;
+    var f = initialFrequency;
+    var a = 0.5;
     var t = vec3f(0,0,0);
     for( var i: u32 = 0 ; i < numOctaves; i++ ) {
         t += a*noise3D(x * f);
+        t = clamp(t, vec3(-1.,-1.,-1.), vec3(1.,1.,1.));
+        f *= 2.0;
+        a *= G;
+    }
+    return t;
+}
+
+fn fbm(x: vec3f, H: f32, numOctaves: u32, initialFrequency: f32) -> f32 {
+    var G = exp2(-H);
+    var f = initialFrequency;
+    var a = 0.5;
+    var t = 0.;
+    for( var i: u32 = 0 ; i < numOctaves; i++ ) {
+        var n = a*noise3D(x * f);
+        // n = n * n;
+        n = clamp(n, -1., 1.);
+        t += n;
+        t = clamp(t, -1., 1.);
         f *= 2.0;
         a *= G;
     }
@@ -195,11 +217,23 @@ fn fbm(x: vec3f, H: f32, numOctaves: u32) -> vec3f {
 
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
-    var globalPosF = in.position.xyz;
+    var st = vec3(sin(in.uv.x * 2.0 * 3.14159265359 ), sin(in.uv.y * 2.0 * 3.14159265359), uUniformData.time * 0.01);
 
-    var color = fbm(globalPosF, 0.5, 10u);
-    color = vec3(mapZeroToOne(color.x), mapZeroToOne(color.y), mapZeroToOne(color.z));
+    var q = vec2(0.);
+    q.x = fbm(st, 0.9, 8u, 1.);
+    q.y = fbm(st + vec3(5.2, 1.3, 0.0), 0.5, 8u, 1.);
 
+    var r = vec2(0.);
+    r.x = fbm(st + vec3(q, 0.0) + vec3(1.7, 9.0, 0.0) + uUniformData.time * 0.05, 0.5, 8u, 0.1);
+    r.y = fbm(st + vec3(q, 0.0) + vec3(8.3, 2.8, 0.0) + uUniformData.time * 0.01, 0.5, 8u, 0.1);
+
+    var f = fbm(st + vec3(r, 0.0), 0.5, 8u, 1.);
+
+    var mix1 = mix(vec3(0., 0., 0.) / 255., vec3(255., 207., 130.) / 255., f);
+    var mix2 = mix(mix1, vec3(78.,204.,145.) / 255., r.x * .999);
+    var mix3 = mix(mix2, vec3(150.,76.,42.) / 255., r.y * 0.3);
+
+    var color = mix3;
     // color correction
     let linear_color = pow(color, vec3f(2.2));
     return vec4f(linear_color, 1.0);

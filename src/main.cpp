@@ -50,7 +50,7 @@ int main() {
     std::shared_ptr<Entity> sky = std::make_shared<Entity>();
     sky->addComponent<TransformComponent>();
     auto meshComponent3 = sky->addComponent<MeshComponent>();
-    auto skyMesh = MeshBuilder::createUVSphere(10, 10, 10);
+    auto skyMesh = MeshBuilder::createUVSphere(10, 10, 10, true);
     meshComponent3->mesh = skyMesh;
     auto materialComponent3 = sky->addComponent<MaterialComponent>();
     materialComponent3->material = skyMaterial;
