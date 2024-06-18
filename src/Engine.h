@@ -3,6 +3,8 @@
 #include "ecs/EntityManager.h"
 #include "input/InputManager.h"
 #include "terrain/TerrainManager.h"
+#include "renderer/ComputeModule.h"
+#include "noise/RandomNumberGenerator.h"
 
 class Engine {
 public:
@@ -18,10 +20,13 @@ public:
     void pause();
     void shutdown();
 
+    uint32_t randomInt(uint32_t max);
+
     std::shared_ptr<Renderer> renderer = nullptr;
     std::shared_ptr<EntityManager> entityManager = nullptr;
     std::shared_ptr<InputManager> inputManager = nullptr;
     std::shared_ptr<TerrainManager> terrainManager = nullptr;
+    std::shared_ptr<ComputeModule> computeModule = nullptr;
 private:
     void handleInput();
     void updateCamera();
@@ -29,6 +34,7 @@ private:
     void setupBindings();
     void wrapCursor(SDL_Event e);
 private:
+    RandomNumberGenerator m_random;
     bool m_isRunning = false;
     bool m_isSimulating = false;
     bool m_isDrawing = false;

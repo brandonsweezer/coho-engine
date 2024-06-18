@@ -727,7 +727,7 @@ bool Renderer::initRenderPipeline() {
 bool Renderer::initShaderModule() {
     std::cout << "initializing shader module" << std::endl;
     ShaderModuleWGSLDescriptor shaderModuleWGSLDesc;
-    std::string shaderCode = ResourceLoader::loadShaderCode(RESOURCE_DIR "/shader.wgsl");
+    std::string shaderCode = ResourceLoader::loadShaderCode(RESOURCE_DIR "/noiseShader.wgsl");
     shaderModuleWGSLDesc.code = shaderCode.c_str();
     shaderModuleWGSLDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
     shaderModuleWGSLDesc.chain.next = nullptr;

@@ -13,7 +13,6 @@
 
 Terrain::Terrain(std::string path, std::string filename, float width, float height, int resolution, float scale) {
     m_terrain = std::make_shared<Entity>();
-    std::cout << "loading from image" << std::endl;
     LoadFromImage(path, filename, width, height, resolution, scale);
 }
 

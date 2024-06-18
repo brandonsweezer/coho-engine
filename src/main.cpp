@@ -8,6 +8,7 @@
 #include "ecs/components/Mesh.h"
 #include "ecs/components/MaterialComponent.h"
 #include "ecs/components/Material.h"
+#include "ecs/components/Texture.h"
 #include <iostream>
 #include <memory>
 #include "utilities/MeshBuilder.h"
@@ -20,11 +21,13 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
+using namespace coho;
+
 int main() {
     Engine engine;
 
     // making sky material
-    std::shared_ptr<Texture> skyTexture = std::make_shared<Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "autumn_park_4k.jpg"));
+    std::shared_ptr<coho::Texture> skyTexture = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "autumn_park_4k.jpg"));
     std::shared_ptr<Material> skyMaterial = std::make_shared<Material>();
     skyMaterial->name = "sky";
     skyMaterial->baseColor = glm::vec3(1.0);
@@ -32,8 +35,8 @@ int main() {
     skyMaterial->normalTexture = skyTexture;
     skyMaterial->roughness = 0.5;
 
-    std::shared_ptr<Texture> brickDiffuseTex = std::make_shared<Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_diffuse.jpg"));
-    std::shared_ptr<Texture> brickNormalTex = std::make_shared<Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_normal.png"));
+    std::shared_ptr<coho::Texture> brickDiffuseTex = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_diffuse.jpg"));
+    std::shared_ptr<coho::Texture> brickNormalTex = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_normal.png"));
 
     // making brick material
     std::shared_ptr<Material> brickMaterial = std::make_shared<Material>();
@@ -47,7 +50,7 @@ int main() {
     std::shared_ptr<Entity> sky = std::make_shared<Entity>();
     sky->addComponent<TransformComponent>();
     auto meshComponent3 = sky->addComponent<MeshComponent>();
-    auto skyMesh = MeshBuilder::createUVSphere(10, 10, 10, true);
+    auto skyMesh = MeshBuilder::createUVSphere(10, 10, 10);
     meshComponent3->mesh = skyMesh;
     auto materialComponent3 = sky->addComponent<MaterialComponent>();
     materialComponent3->material = skyMaterial;

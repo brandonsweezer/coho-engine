@@ -3,6 +3,8 @@
 #include "constants.h"
 #include "input/InputManager.h"
 #include "input/InputEvents.h"
+#include "renderer/ComputeModule.h"
+#include "noise/RandomNumberGenerator.h"
 #include "ecs/components/TransformComponent.h"
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
@@ -17,6 +19,9 @@ Engine::Engine() {
     
     std::cout << "initializing renderer" << std::endl;
     renderer = std::make_shared<Renderer>();
+
+    std::cout << "initializing compute module" << std::endl;
+    computeModule = std::make_shared<ComputeModule>();
     
     std::cout << "initializing entity manager" << std::endl;
     entityManager = std::make_shared<EntityManager>();
@@ -27,6 +32,9 @@ Engine::Engine() {
     std::cout << "initializing terrainManager" << std::endl;
     terrainManager = std::make_shared<TerrainManager>();
     entityManager->addEntity(terrainManager->getTerrainPatch(), renderer);
+
+    std::cout << "initializing random number generator" << std::endl;
+    m_random = RandomNumberGenerator(42);
 
     setupBindings();
 }
@@ -141,6 +149,10 @@ bool Engine::isRunning() {
 
 void Engine::setupBindings() {
 
+}
+
+uint32_t Engine::randomInt(uint32_t max) {
+    return m_random.next(max);
 }
 
 void Engine::handleInput() {
