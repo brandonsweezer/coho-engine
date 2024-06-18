@@ -12,6 +12,7 @@ Example: from left to right - no material, only a base color, a diffuse texture,
 
 ### Procedural Noise
 Example: Domain warped noise projected onto the skybox
+
 ![domainwarped-gif](https://github.com/brandonsweezer/coho-engine/assets/23364714/520852d1-d6e4-4027-972f-c1135f3cbc53)
 
 Planned Features:
