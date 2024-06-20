@@ -1,5 +1,5 @@
 # What's this?
-Coho is a realtime rendering engine written in C++ using the WebGPU graphics API. It is currently under active development, so just about everything is subject to change.
+Coho is a realtime rendering engine written in C++ using the WebGPU graphics API. It is currently under active development, so just about everything is subject to change. Until I release version 0 code cleanliness and commit hygene are not a priority.
 
 ## Currently Supported Features:
 ### Instanced rendering
@@ -10,6 +10,10 @@ Example: one million perfectly reflective cubes
 Example: from left to right - no material, only a base color, a diffuse texture, a normal texture, a diffuse + normal texture
 ![image](https://github.com/brandonsweezer/coho-engine/assets/23364714/459c3c2f-e744-4337-a204-811b608f25e0)
 
+### Procedural Noise
+Example: Domain warped noise projected onto the skybox
+
+![domainwarped-gif](https://github.com/brandonsweezer/coho-engine/assets/23364714/520852d1-d6e4-4027-972f-c1135f3cbc53)
 
 Planned Features:
 1. Terrain system
