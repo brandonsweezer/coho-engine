@@ -1,5 +1,5 @@
 #pragma once
-#include "../renderer/Renderer.h"
+#include "../gpu/RenderModule.h"
 #include "EntityManager.h"
 #include "components/Components.h"
 #include "components/TransformComponent.h"
@@ -21,7 +21,7 @@ EntityManager::~EntityManager() {
     camera.reset();
 }
 
-void EntityManager::addDefaultMaterial(std::shared_ptr<Renderer> renderer) {
+void EntityManager::addDefaultMaterial(std::shared_ptr<Renderer> renderModule) {
     std::shared_ptr<Texture> defaultTexture = std::make_shared<Texture>();
     defaultTexture->channels = 4;
     defaultTexture->width = 1;
@@ -38,12 +38,12 @@ void EntityManager::addDefaultMaterial(std::shared_ptr<Renderer> renderer) {
     defaultMaterial->normalTexture = defaultTexture;
     defaultMaterial->roughness = 1.0;
 
-    addMaterial(defaultMaterial, renderer);
+    addMaterial(defaultMaterial, renderModule);
 }
 
-int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderer) {
+int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderModule) {
     if (entity->hasComponent<InstanceComponent>()) {
-        return addInstance(entity, renderer);
+        return addInstance(entity, renderModule);
     }
 
     int id = m_nextId;
@@ -63,24 +63,24 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
         // write the material to the model data
         std::shared_ptr<Material> material = entity->getComponent<MaterialComponent>()->material;
         if (material->materialIndex == -1) { // we gotta register it!
-            addMaterial(material, renderer);
+            addMaterial(material, renderModule);
         }
         modelData.materialIndex = material->materialIndex;
     }
 
     // write the model buffer
     std::vector<Renderer::ModelData> mds = { modelData };
-    renderer->writeModelBuffer(mds, m_nextModelBufferOffset);
+    renderModule->writeModelBuffer(mds, m_nextModelBufferOffset);
     m_nextModelBufferOffset += sizeof(Renderer::ModelData);
 
     // write the mesh vertices to the vertex buffer
     std::shared_ptr<Mesh> mesh = entity->getComponent<MeshComponent>()->mesh;
     std::vector<Mesh::VertexData> vds = mesh->m_vertexData;
-    int vertexBufferOffset = renderer->addMeshToVertexBuffer(vds);
+    int vertexBufferOffset = renderModule->addMeshToVertexBuffer(vds);
     mesh->setVertexBufferOffset(vertexBufferOffset);
     if (mesh->isIndexed) {
         std::vector<uint32_t> indices = mesh->getIndexData();
-        int indexBufferOffset = renderer->addMeshToIndexBuffer(indices);
+        int indexBufferOffset = renderModule->addMeshToIndexBuffer(indices);
         mesh->setIndexBufferOffset(indexBufferOffset);
     }
 
@@ -90,7 +90,7 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
 
 // todo: pass array of instances and write to model buffer en-mass 
 // these sequential queue operations are killer
-int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderer) {
+int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderModule) {
     if (!entity->hasComponent<InstanceComponent>()) {
         std::cout << "ERROR: No instance component found on entity!" << std::endl;
         return -1;
@@ -111,19 +111,19 @@ int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<R
         // write the material to the model data
         std::shared_ptr<Material> material = prototype->getComponent<MaterialComponent>()->material;
         if (material->materialIndex == -1) { // we gotta register it!
-            material->materialIndex = addMaterial(material, renderer);
+            material->materialIndex = addMaterial(material, renderModule);
         }
         modelData.materialIndex = material->materialIndex;
     }
 
     std::vector<Renderer::ModelData> mds = { modelData };
-    renderer->writeModelBuffer(mds, m_nextModelBufferOffset);
+    renderModule->writeModelBuffer(mds, m_nextModelBufferOffset);
     m_nextModelBufferOffset += sizeof(Renderer::ModelData);
     
     return id;
 }
 
-int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer> renderer) {
+int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer> renderModule) {
     int id = m_nextId;
     sky->setId(m_nextId);
     m_nextId = m_nextId + 1;
@@ -138,32 +138,32 @@ int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer>
     if (sky->hasComponent<MaterialComponent>()) {
         std::shared_ptr<Material> skymaterial = sky->getComponent<MaterialComponent>()->material;
         if (skymaterial->materialIndex == -1) {
-            skymaterial->materialIndex = addMaterial(skymaterial, renderer);
+            skymaterial->materialIndex = addMaterial(skymaterial, renderModule);
         }
         modelData.materialIndex = skymaterial->materialIndex;
     }
 
     std::vector<Renderer::ModelData> mds = { modelData };
-    renderer->writeModelBuffer(mds, m_nextModelBufferOffset);
+    renderModule->writeModelBuffer(mds, m_nextModelBufferOffset);
     m_nextModelBufferOffset += sizeof(Renderer::ModelData);
 
     std::shared_ptr<Mesh> mesh = sky->getComponent<MeshComponent>()->mesh;
     std::vector<Mesh::VertexData> vds = mesh->m_vertexData;
-    int vertexBufferOffset = renderer->addMeshToVertexBuffer(vds);
+    int vertexBufferOffset = renderModule->addMeshToVertexBuffer(vds);
     mesh->setVertexBufferOffset(vertexBufferOffset);
     if (mesh->isIndexed) {
         std::cout << "adding indices" << std::endl;
         std::vector<uint32_t> indices = mesh->getIndexData();
-        int indexBufferOffset = renderer->addMeshToIndexBuffer(indices);
+        int indexBufferOffset = renderModule->addMeshToIndexBuffer(indices);
         mesh->setIndexBufferOffset(indexBufferOffset);
     }
 
     return id;
 }
 
-// registers the material with the renderer, assigns it an id, and returns the id
-int EntityManager::addMaterial(std::shared_ptr<Material> material, std::shared_ptr<Renderer> renderer) {
-    int materialBufferIndex = renderer->registerMaterial(material);
+// registers the material with the renderModule, assigns it an id, and returns the id
+int EntityManager::addMaterial(std::shared_ptr<Material> material, std::shared_ptr<Renderer> renderModule) {
+    int materialBufferIndex = renderModule->registerMaterial(material);
     m_materials.push_back(material);
     int materialId = (int)m_materials.size() - 1;
     material->materialIndex = materialBufferIndex;

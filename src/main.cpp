@@ -27,7 +27,7 @@ int main() {
     Engine engine;
 
     // making sky material
-    std::shared_ptr<coho::Texture> skyTexture = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "autumn_park_4k.jpg"));
+    std::shared_ptr<coho::Texture> skyTexture = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "textures/autumn_park_4k.jpg"));
     std::shared_ptr<Material> skyMaterial = std::make_shared<Material>();
     skyMaterial->name = "sky";
     skyMaterial->baseColor = glm::vec3(1.0);
@@ -35,8 +35,8 @@ int main() {
     skyMaterial->normalTexture = skyTexture;
     skyMaterial->roughness = 0.5;
 
-    std::shared_ptr<coho::Texture> brickDiffuseTex = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_diffuse.jpg"));
-    std::shared_ptr<coho::Texture> brickNormalTex = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "brick_normal.png"));
+    std::shared_ptr<coho::Texture> brickDiffuseTex = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "textures/brick_diffuse.jpg"));
+    std::shared_ptr<coho::Texture> brickNormalTex = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "textures/brick_normal.png"));
 
     // making brick material
     std::shared_ptr<Material> brickMaterial = std::make_shared<Material>();
@@ -55,7 +55,7 @@ int main() {
     auto materialComponent3 = sky->addComponent<MaterialComponent>();
     materialComponent3->material = skyMaterial;
 
-    engine.entityManager->setSky(sky, engine.renderer);
+    engine.entityManager->setSky(sky, engine.renderModule);
 
     engine.start();
 

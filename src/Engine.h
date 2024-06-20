@@ -1,9 +1,11 @@
 #pragma once
-#include "renderer/Renderer.h"
+#include "webgpu/webgpu.hpp"
+
+#include "gpu/RenderModule.h"
 #include "ecs/EntityManager.h"
 #include "input/InputManager.h"
 #include "terrain/TerrainManager.h"
-#include "renderer/ComputeModule.h"
+#include "gpu/ComputeModule.h"
 #include "noise/RandomNumberGenerator.h"
 
 class Engine {
@@ -22,7 +24,7 @@ public:
 
     uint32_t randomInt(uint32_t max);
 
-    std::shared_ptr<Renderer> renderer = nullptr;
+    std::shared_ptr<Renderer> renderModule = nullptr;
     std::shared_ptr<EntityManager> entityManager = nullptr;
     std::shared_ptr<InputManager> inputManager = nullptr;
     std::shared_ptr<TerrainManager> terrainManager = nullptr;
@@ -33,6 +35,8 @@ private:
 
     void setupBindings();
     void wrapCursor(SDL_Event e);
+
+    void initGPU();
 private:
     RandomNumberGenerator m_random;
     bool m_isRunning = false;
@@ -46,4 +50,10 @@ private:
     float m_sensitivity = 0.05;
     float m_rotationSensitivity = 0.001;
     float m_moveSpeed = 25.0;
+
+    std::shared_ptr<wgpu::Device> m_device = nullptr;
+    std::unique_ptr<wgpu::ErrorCallback> m_deviceErrorCallback;
+    wgpu::Instance m_instance = nullptr;
+    SDL_Window* m_window = nullptr;
+    wgpu::Surface m_surface = nullptr;
 };

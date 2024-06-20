@@ -66,6 +66,14 @@ public:
 	};
     DragState m_dragState;
 
+    struct UniformData {
+        glm::mat4x4 view_matrix;
+        glm::mat4x4 projection_matrix;
+        glm::vec3 camera_world_position;
+        float time;
+        float padding[3]; // need to chunk into 4x4x4 sections (4x4 floats)
+    };
+
     void updateProjectionMatrix();
     void updateViewMatrix();
     glm::vec2 getScreenDimensions();
@@ -118,13 +126,6 @@ private:
 
     bool m_isRunning = true;
 
-    struct UniformData {
-        glm::mat4x4 view_matrix;
-        glm::mat4x4 projection_matrix;
-        glm::vec3 camera_world_position;
-        float time;
-        float padding[3]; // need to chunk into 4x4x4 sections (4x4 floats)
-    };
     UniformData m_uniformData;
 
     wgpu::Instance m_instance = nullptr;

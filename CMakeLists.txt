@@ -18,7 +18,7 @@ add_executable(Renderer
 )
 
 target_include_directories(Renderer PRIVATE .)
-target_compile_definitions(Renderer PRIVATE RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources")
+target_compile_definitions(Renderer PRIVATE RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/resources")
 target_link_libraries(Renderer PRIVATE SDL2::SDL2 webgpu sdl2webgpu)
 
 target_copy_webgpu_binaries(Renderer)

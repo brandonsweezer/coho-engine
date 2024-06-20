@@ -131,9 +131,6 @@ void ComputeModule::onCompute() {
         if (status == BufferMapAsyncStatus::Success) {
             const float* output = (const float*)m_mapBuffer.getConstMappedRange(0, 1024 * 1024 * 1 * sizeof(float));
             std::cout << output[1024*1024 - 1] << std::endl;
-            ResourceLoader::ImageData* img = ResourceLoader::loadImage(RESOURCE_DIR, "brick_diffuse.jpg");
-            ExportTexture::exportPng(RESOURCE_DIR, "brick_diffuse_clone.png", img->width, img->height, img->channels, img->data);
-            ExportTexture::exportPng(RESOURCE_DIR, "noise.png", 512, 512, 1, output);
             m_mapBuffer.unmap();
         }
         done = true;
@@ -362,7 +359,7 @@ void ComputeModule::terminateBindGroups() {
 
 bool ComputeModule::initShaderModule() {
     std::cout << "init shader module" << std::endl;
-    std::string shaderCode = ResourceLoader::loadShaderCode(RESOURCE_DIR "/noise.wgsl");
+    std::string shaderCode = ResourceLoader::loadShaderCode(RESOURCE_DIR "/shaders/noise.wgsl");
     ShaderModuleWGSLDescriptor wgslDesc;
     wgslDesc.code = shaderCode.c_str();
     wgslDesc.chain.next = nullptr;
