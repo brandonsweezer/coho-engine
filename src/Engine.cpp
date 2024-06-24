@@ -14,30 +14,41 @@ using vec2 = glm::vec2;
 using vec3 = glm::vec3;
 
 Engine::Engine() {
-    std::cout << "initializing SDL" << std::endl;
+    std::cout << "initializing SDL {" << std::endl;
     SDL_SetMainReady();
+    std::cout << "}" << std::endl;
 
-    std::cout << "initializing GPU" << std::endl;
-    // initGPU();
+    std::cout << "initializing GPU {" << std::endl;
+    if (!initGPU()) {
+        std::cout << "failed to init GPU!" << std::endl;
+    }
+    std::cout << "}" << std::endl;
     
-    std::cout << "initializing renderModule" << std::endl;
-    renderModule = std::make_shared<Renderer>();
+    std::cout << "initializing renderModule {" << std::endl;
+    renderModule = std::make_shared<RenderModule>(m_screenWidth, m_screenHeight, m_device, m_surface);
+    std::cout << "}" << std::endl;
 
-    std::cout << "initializing compute module" << std::endl;
+    std::cout << "initializing compute module {" << std::endl;
     computeModule = std::make_shared<ComputeModule>();
+    std::cout << "}" << std::endl;
     
-    std::cout << "initializing entity manager" << std::endl;
+    std::cout << "initializing entity manager {" << std::endl;
     entityManager = std::make_shared<EntityManager>();
     entityManager->addDefaultMaterial(renderModule);
+    std::cout << "}" << std::endl;
     
+    std::cout << "initializing input manager {" << std::endl;
     inputManager = std::make_shared<InputManager>();
+    std::cout << "}" << std::endl;
 
-    std::cout << "initializing terrainManager" << std::endl;
+    std::cout << "initializing terrainManager {" << std::endl;
     terrainManager = std::make_shared<TerrainManager>();
     entityManager->addEntity(terrainManager->getTerrainPatch(), renderModule);
+    std::cout << "}" << std::endl;
 
-    std::cout << "initializing random number generator" << std::endl;
+    std::cout << "initializing random number generator {" << std::endl;
     m_random = RandomNumberGenerator(42);
+    std::cout << "}" << std::endl;
 
     setupBindings();
 }
@@ -47,13 +58,24 @@ Engine::~Engine() {
     entityManager.reset();
     inputManager.reset();
     terrainManager.reset();
+
+    m_surface.reset();
+    m_device.reset();
+
+    SDL_RELEASE(m_window);
+    SDL_Quit();
+
+    m_instance.release();
 }
 
 void Engine::start() {
+    std::cout << "starting up engine..." << std::endl;
     renderModule->startup();
     m_isRunning = true;
     m_isDrawing = true;
     m_isSimulating = true;
+
+    std::cout << "== vroom vroom ==" << std::endl;
     while (m_isRunning) {
         tick();
     }
@@ -170,7 +192,9 @@ void Engine::handleInput() {
                     case SDL_WINDOWEVENT_SIZE_CHANGED:
                     case SDL_WINDOWEVENT_RESIZED:
                         std::cout << "window resized!!" << std::endl;
-                        renderModule->resizeWindow(e.window.data1, e.window.data2);
+                        m_screenWidth = e.window.data1;
+                        m_screenHeight = e.window.data2;
+                        renderModule->resizeWindow(m_screenWidth, m_screenHeight);
                         break;
                 }
                 break;
@@ -208,93 +232,98 @@ void Engine::handleInput() {
 }
 
 void Engine::wrapCursor(SDL_Event e) {
-    vec2 screenDimension = renderModule->getScreenDimensions();
+    vec2 screenDimension = vec2(m_screenWidth, m_screenHeight);
     if (e.motion.x == screenDimension.x - 1) {
-        SDL_WarpMouseInWindow(renderModule->getWindow(), 1, e.motion.y);
+        SDL_WarpMouseInWindow(m_window, 1, e.motion.y);
         m_lastMouseState = inputManager->getMouseState();
     }
     if (e.motion.x == 0) {
-        SDL_WarpMouseInWindow(renderModule->getWindow(), screenDimension.x - 2, e.motion.y);
+        SDL_WarpMouseInWindow(m_window, screenDimension.x - 2, e.motion.y);
         m_lastMouseState = inputManager->getMouseState();
     }
     if (e.motion.y == screenDimension.y - 1) {
-        SDL_WarpMouseInWindow(renderModule->getWindow(), e.motion.x, 1);
+        SDL_WarpMouseInWindow(m_window, e.motion.x, 1);
         m_lastMouseState = inputManager->getMouseState();
     }
     if (e.motion.y == 0) {
-        SDL_WarpMouseInWindow(renderModule->getWindow(), e.motion.x, screenDimension.y - 2);
+        SDL_WarpMouseInWindow(m_window, e.motion.x, screenDimension.y - 2);
         m_lastMouseState = inputManager->getMouseState();
     }
 }
 
-// bool Engine::initGPU() {
-//     m_instance = createInstance(InstanceDescriptor{});
-//     if (!m_instance) return false;
+bool Engine::initGPU() {
+    m_instance = createInstance(InstanceDescriptor{});
+    if (!m_instance) return false;
 
-//     if (SDL_Init(SDL_INIT_VIDEO) == -1) {
-//         return false;
-//     }
-//     SDL_SetRelativeMouseMode(SDL_TRUE);
+    if (SDL_Init(SDL_INIT_VIDEO) == -1) {
+        return false;
+    }
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
-//     std::cout << "initializing window" << std::endl;
-//     m_window = SDL_CreateWindow("Coho", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, m_screenWidth, m_screenHeight, SDL_WINDOW_RESIZABLE);
-//     if (!m_window) return false;
+    std::cout << "initializing window" << std::endl;
+    m_window = SDL_CreateWindow("Coho", 
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        m_screenWidth,
+        m_screenHeight,
+        SDL_WINDOW_RESIZABLE);
+    if (!m_window) return false;
 
-//     std::cout << "initializing surface" << std::endl;
-//     m_surface = SDL_GetWGPUSurface(m_instance, m_window);
-//     if (!m_surface) return false;
+    std::cout << "initializing surface" << std::endl;
+    m_surface = std::make_shared<wgpu::Surface>(SDL_GetWGPUSurface(m_instance, m_window));
+    if (!m_surface) return false;
 
-//     std::cout << "initializing adapter" << std::endl;
-//     RequestAdapterOptions adapterOptions;
-//     adapterOptions.compatibleSurface = m_surface;
-//     adapterOptions.forceFallbackAdapter = false;
-//     adapterOptions.powerPreference = PowerPreference::Undefined;
-//     Adapter adapter = m_instance.requestAdapter(adapterOptions);
-//     if (!adapter) return false;
+    std::cout << "initializing adapter" << std::endl;
+    RequestAdapterOptions adapterOptions;
+    adapterOptions.compatibleSurface = *m_surface;
+    adapterOptions.forceFallbackAdapter = false;
+    adapterOptions.powerPreference = PowerPreference::Undefined;
+    Adapter adapter = m_instance.requestAdapter(adapterOptions);
+    if (!adapter) return false;
 
-//     m_preferredFormat = m_surface.getPreferredFormat(adapter);
+    m_preferredFormat = m_surface->getPreferredFormat(adapter);
 
-//     std::cout << "initializing device" << std::endl;
-//     RequiredLimits requiredLimits;
-//     requiredLimits.limits.minStorageBufferOffsetAlignment = 64;
-//     requiredLimits.limits.minUniformBufferOffsetAlignment = 64;
-//     requiredLimits.limits.maxUniformBufferBindingSize = sizeof(Renderer::UniformData);
-//     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
-//     requiredLimits.limits.maxBindGroups = 1;
-//     requiredLimits.limits.maxBindingsPerBindGroup = 7;
-//     requiredLimits.limits.maxVertexBuffers = 1;
-//     requiredLimits.limits.maxVertexAttributes = 7;
-//     requiredLimits.limits.maxBufferSize = 1000000 * sizeof(Renderer::ModelData); // 1,000,000 models
-//     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(Mesh::VertexData);
-//     requiredLimits.limits.maxInterStageShaderComponents = 18;
-//     requiredLimits.limits.maxStorageBuffersPerShaderStage = 2;
-//     requiredLimits.limits.maxStorageBufferBindingSize = 1000000 * sizeof(Renderer::ModelData); // 1 million objects
+    std::cout << "initializing device" << std::endl;
+    RequiredLimits requiredLimits;
+    requiredLimits.limits.minStorageBufferOffsetAlignment = 64;
+    requiredLimits.limits.minUniformBufferOffsetAlignment = 64;
+    requiredLimits.limits.maxUniformBufferBindingSize = sizeof(DefaultPipeline::UniformData);
+    requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
+    requiredLimits.limits.maxBindGroups = 1;
+    requiredLimits.limits.maxBindingsPerBindGroup = 7;
+    requiredLimits.limits.maxVertexBuffers = 1;
+    requiredLimits.limits.maxVertexAttributes = 7;
+    requiredLimits.limits.maxBufferSize = 1000000 * sizeof(DefaultPipeline::ModelData); // 1,000,000 models
+    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(Mesh::VertexData);
+    requiredLimits.limits.maxInterStageShaderComponents = 18;
+    requiredLimits.limits.maxStorageBuffersPerShaderStage = 2;
+    requiredLimits.limits.maxStorageBufferBindingSize = 1000000 * sizeof(DefaultPipeline::ModelData); // 1 million objects
 
-//     requiredLimits.limits.maxTextureDimension1D = 8192;
-//     requiredLimits.limits.maxTextureDimension2D = 8192;
-//     requiredLimits.limits.maxTextureArrayLayers = 1;
-//     requiredLimits.limits.maxSampledTexturesPerShaderStage = 100;
-//     requiredLimits.limits.maxSamplersPerShaderStage = 2;
+    requiredLimits.limits.maxTextureDimension1D = 8192;
+    requiredLimits.limits.maxTextureDimension2D = 8192;
+    requiredLimits.limits.maxTextureArrayLayers = 1;
+    requiredLimits.limits.maxSampledTexturesPerShaderStage = 100;
+    requiredLimits.limits.maxSamplersPerShaderStage = 2;
 
-//     DeviceDescriptor deviceDesc;
-//     deviceDesc.defaultQueue = QueueDescriptor{};
-//     deviceDesc.requiredFeatureCount = 2;
-//     // special conversion for native features
-//     std::vector<WGPUFeatureName> reqFeatures{
-//         (WGPUFeatureName)NativeFeature::TextureBindingArray,
-//         (WGPUFeatureName)NativeFeature::SampledTextureAndStorageBufferArrayNonUniformIndexing
-//     };
-//     deviceDesc.requiredFeatures = reqFeatures.data();
-//     deviceDesc.requiredLimits = &requiredLimits;
-//     deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const * message, void * userdata) {
-//         std::cout << "Device lost! Reason: " << reason << userdata << "(\n" << message << "\n)" << std::endl;
-//     };
+    DeviceDescriptor deviceDesc;
+    deviceDesc.defaultQueue = QueueDescriptor{};
+    deviceDesc.requiredFeatureCount = 2;
+    // special conversion for native features
+    std::vector<WGPUFeatureName> reqFeatures{
+        (WGPUFeatureName)NativeFeature::TextureBindingArray,
+        (WGPUFeatureName)NativeFeature::SampledTextureAndStorageBufferArrayNonUniformIndexing
+    };
+    deviceDesc.requiredFeatures = reqFeatures.data();
+    deviceDesc.requiredLimits = &requiredLimits;
+    deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const * message, void * userdata) {
+        std::cout << "Device lost! Reason: " << reason << userdata << "(\n" << message << "\n)" << std::endl;
+    };
 
-//     m_device = std::make_shared<wgpu::Device>(adapter.requestDevice(deviceDesc));
-//     if (!m_device) return false;
-//     m_deviceErrorCallback = m_device->setUncapturedErrorCallback([](ErrorType type, char const * message) {
-//         std::cout << "Device error! " << type << "(\n" << message << "\n)" << std::endl;
-//     });
+    m_device = std::make_shared<wgpu::Device>(adapter.requestDevice(deviceDesc));
+    if (!m_device) return false;
+    m_deviceErrorCallback = m_device->setUncapturedErrorCallback([](ErrorType type, char const * message) {
+        std::cout << "Device error! " << type << "(\n" << message << "\n)" << std::endl;
+    });
 
-//     return true;
-// }
+    return true;
+}

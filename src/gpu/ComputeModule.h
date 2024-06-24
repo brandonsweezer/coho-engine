@@ -1,6 +1,9 @@
 #pragma once
 #include <webgpu/webgpu.hpp>
 #include <glm/glm.hpp>
+#include "../memory/Pipeline.h"
+#include "../memory/Buffer.h"
+#include "../memory/Shader.h"
 
 using namespace wgpu;
 
@@ -41,7 +44,7 @@ private:
     };
 
     ShaderModule m_shaderModule = nullptr;
-    Buffer m_dataBuffer = nullptr;
+    wgpu::Buffer m_dataBuffer = nullptr;
 
     Instance m_instance = nullptr;
     Device m_device = nullptr;
@@ -52,10 +55,10 @@ private:
     BindGroup m_bindGroup = nullptr;
     BindGroupLayout m_bindGroupLayout = nullptr;
 
-    Buffer m_inputBuffer = nullptr;
-    Buffer m_outputBuffer = nullptr;
-    Buffer m_mapBuffer = nullptr;
-    Buffer m_uniformBuffer = nullptr;
+    wgpu::Buffer m_inputBuffer = nullptr;
+    wgpu::Buffer m_outputBuffer = nullptr;
+    wgpu::Buffer m_mapBuffer = nullptr;
+    wgpu::Buffer m_uniformBuffer = nullptr;
 
     // perlin noise specific resources
     wgpu::Texture m_permutationTexture = nullptr; // 1d texture with permutation values

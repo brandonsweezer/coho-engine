@@ -3,6 +3,12 @@
 #include "../ecs/Entity.h"
 #include "../ecs/components/MeshComponent.h"
 
+#include "../memory/Buffer.h"
+#include "../memory/Shader.h"
+#include "../resources/pipelines/default.h"
+#include "../resources/renderpass/skybox.h"
+#include "../resources/renderpass/geometry.h"
+
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
@@ -20,29 +26,33 @@ const float PI = 3.14159265358979323846f;
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
-Renderer::Renderer() {
+RenderModule::RenderModule(int screenWidth, int screenHeight, std::shared_ptr<wgpu::Device> device, std::shared_ptr<wgpu::Surface> surface) {
+    m_device = device;
+    m_surface = surface;
+    m_screenWidth = screenWidth;
+    m_screenHeight = screenHeight;
     init();
 }
 
-Renderer::~Renderer() {
+RenderModule::~RenderModule() {
     terminate();
 }
 
-void Renderer::writeModelBuffer(std::vector<ModelData> modelData, int offset = 0) {
-    m_queue.writeBuffer(m_modelBuffer, offset, modelData.data(), modelData.size() * sizeof(ModelData));
+void RenderModule::writeModelBuffer(std::vector<DefaultPipeline::ModelData> modelData, int offset = 0) {
+    m_device->getQueue().writeBuffer(m_modelBuffer->getBuffer(), offset, modelData.data(), modelData.size() * sizeof(DefaultPipeline::ModelData));
 }
 
-void Renderer::writeMaterialBuffer(std::vector<MaterialData> materialData, int offset = 0) {
-    m_queue.writeBuffer(m_materialBuffer, offset, materialData.data(), materialData.size() * sizeof(MaterialData));
+void RenderModule::writeMaterialBuffer(std::vector<DefaultPipeline::MaterialData> materialData, int offset = 0) {
+    m_device->getQueue().writeBuffer(m_materialBuffer->getBuffer(), offset, materialData.data(), materialData.size() * sizeof(DefaultPipeline::MaterialData));
 }
 
-void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time) {
+void RenderModule::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time) {
     m_uniformData.time = time;
-    m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, time), &m_uniformData.time, sizeof(UniformData::time));
+    m_device->getQueue().writeBuffer(m_uniformBuffer->getBuffer(), offsetof(DefaultPipeline::UniformData, time), &m_uniformData.time, sizeof(DefaultPipeline::UniformData::time));
     
     // ~~~
     m_surfaceTextureTexture.release();
-    m_surface.getCurrentTexture(&m_surfaceTexture);
+    m_surface->getCurrentTexture(&m_surfaceTexture);
     m_surfaceTextureTexture = m_surfaceTexture.texture;
     m_surfaceTextureView.release();
     // todo: fix this workflow. feels wrong to release and recreate every frame
@@ -65,118 +75,43 @@ void Renderer::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::share
     
     skyBoxRenderPass(sky);
     geometryRenderPass(entities);
-    m_surface.present();
+    m_surface->present();
 }
 
-void Renderer::skyBoxRenderPass(std::shared_ptr<Entity> sky) {
-    RenderPassColorAttachment colorAttachment;
-    colorAttachment.clearValue = { 0.0, 0.0, 0.0 };
-    colorAttachment.loadOp = LoadOp::Clear;
-    colorAttachment.storeOp = StoreOp::Store;
-    colorAttachment.resolveTarget = nullptr;
-    colorAttachment.view = m_surfaceTextureView;
-
-    RenderPassDepthStencilAttachment depthStencilAttachment;
-    depthStencilAttachment.depthClearValue = 1.0;
-    depthStencilAttachment.depthLoadOp = LoadOp::Load;
-    depthStencilAttachment.depthStoreOp = StoreOp::Store;
-    depthStencilAttachment.depthReadOnly = false;
-
-    depthStencilAttachment.stencilClearValue = 0;
-    depthStencilAttachment.stencilLoadOp = LoadOp::Load;
-    depthStencilAttachment.stencilStoreOp = StoreOp::Store;
-    depthStencilAttachment.stencilReadOnly = true;
-    depthStencilAttachment.view = m_depthTextureView;
-
-    RenderPassDescriptor renderPassDesc;
-    renderPassDesc.colorAttachmentCount = 1;
-    renderPassDesc.colorAttachments = &colorAttachment;
-    renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
-    renderPassDesc.occlusionQuerySet = nullptr;
-    renderPassDesc.timestampWrites = nullptr;
-
-    CommandEncoder commandEncoder = m_device.createCommandEncoder(CommandEncoderDescriptor{});
-    RenderPassEncoder renderPassEncoder = commandEncoder.beginRenderPass(renderPassDesc);
-    renderPassEncoder.setPipeline(m_renderPipeline);
-    renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
-    renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
-
-    // draw
-    auto mesh = sky->getComponent<MeshComponent>()->mesh;
-    renderPassEncoder.draw(mesh->getVertexCount(), 1, mesh->getVertexBufferOffset(), sky->getId());
-
-    renderPassEncoder.end();
-    CommandBuffer commandBuffer = commandEncoder.finish(CommandBufferDescriptor{});
-    m_queue.submit(commandBuffer);
-    commandEncoder.release();
-    commandBuffer.release();
-    renderPassEncoder.release();
+void RenderModule::skyBoxRenderPass(std::shared_ptr<Entity> sky) {
+    SkyboxRenderPass::render(*m_device,
+        m_surfaceTextureView,
+        m_depthTextureView,
+        m_renderPipeline->getRenderPipeline(),
+        m_vertexBuffer->getBuffer(), 
+        m_vertexCount * sizeof(VertexData),
+        m_renderPipeline->m_bindGroup,
+        {sky}
+    );
 }
 
-void Renderer::geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities) {
-    RenderPassColorAttachment renderPassColorAttachment;
-    renderPassColorAttachment.clearValue = { 0.0, 0.0, 0.0 };
-    renderPassColorAttachment.loadOp = LoadOp::Load;
-    renderPassColorAttachment.storeOp = StoreOp::Store;
-    renderPassColorAttachment.resolveTarget = nullptr;
-    renderPassColorAttachment.view = m_surfaceTextureView;
-    
-    RenderPassDepthStencilAttachment depthStencilAttachment;
-    depthStencilAttachment.depthClearValue = 1.0;
-    depthStencilAttachment.depthLoadOp = LoadOp::Clear;
-    depthStencilAttachment.depthStoreOp = StoreOp::Store;
-    depthStencilAttachment.depthReadOnly = false;
-
-    depthStencilAttachment.stencilClearValue = 0;
-    depthStencilAttachment.stencilLoadOp = LoadOp::Clear;
-    depthStencilAttachment.stencilStoreOp = StoreOp::Store;
-    depthStencilAttachment.stencilReadOnly = false;
-
-    depthStencilAttachment.view = m_depthTextureView;
-
-    RenderPassDescriptor renderPassDesc;
-    renderPassDesc.colorAttachmentCount = 1;
-    renderPassDesc.colorAttachments = &renderPassColorAttachment;
-    renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
-    renderPassDesc.occlusionQuerySet = nullptr;
-    renderPassDesc.timestampWrites = nullptr;
-
-    CommandEncoder commandEncoder = m_device.createCommandEncoder(CommandEncoderDescriptor{});
-    RenderPassEncoder renderPassEncoder = commandEncoder.beginRenderPass(renderPassDesc);
-    renderPassEncoder.setPipeline(m_renderPipeline);
-    renderPassEncoder.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexData));
-    renderPassEncoder.setBindGroup(0, m_bindGroup, 0, nullptr);
-    renderPassEncoder.setIndexBuffer(m_indexBuffer, IndexFormat::Uint32, 0, m_indexCount * sizeof(uint32_t));
-
-    for (auto entity : entities) {
-        auto mesh = entity->getComponent<MeshComponent>()->mesh;
-        if (mesh->isIndexed) {
-            renderPassEncoder.drawIndexed(mesh->getIndexCount(), entity->instanceCount, mesh->getIndexBufferOffset(), mesh->getVertexBufferOffset(), entity->getId());
-        } else {
-            renderPassEncoder.draw(mesh->getVertexCount(), entity->instanceCount, mesh->getVertexBufferOffset(), entity->getId());
-        }
-    }
-
-    renderPassEncoder.end();
-    CommandBuffer commandBuffer = commandEncoder.finish(CommandBufferDescriptor{});
-    m_queue.submit(commandBuffer);
-    commandEncoder.release();
-    commandBuffer.release();
-    renderPassEncoder.release();
+void RenderModule::geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities) {
+    GeometryRenderPass::render(*m_device,
+        m_surfaceTextureView,
+        m_depthTextureView,
+        m_renderPipeline->getRenderPipeline(),
+        m_vertexBuffer->getBuffer(), 
+        m_vertexCount * sizeof(VertexData),
+        m_indexBuffer->getBuffer(),
+        m_vertexCount * sizeof(VertexData),
+        m_renderPipeline->m_bindGroup,
+        entities
+    );
 }
 
-bool Renderer::init() {
-    if (!initWindowAndSurface()) return false;
-    if (!initDevice()) return false;
+bool RenderModule::init() {
     if (!initBuffers()) return false;
     
     return true;
 }
 
-bool Renderer::startup() {
+bool RenderModule::startup() {
     if (!initShaderModule()) return false;
-    if (!initTextures()) return false;
-    if (!initBindGroups()) return false;
     if (!initRenderPipeline()) return false;
     if (!initSurfaceTexture()) return false;
     if (!initDepthBuffer()) return false;
@@ -184,176 +119,75 @@ bool Renderer::startup() {
     return true;
 }
 
-void Renderer::terminate() {
+void RenderModule::terminate() {
     releaseDepthBuffer();
     releaseSurfaceTexture();
     releaseRenderPipeline();
-    releaseBindGroups();
-    releaseTextures();
     releaseBuffers();
     releaseShaderModule();
     releaseDevice();
     releaseWindowAndSurface();
 }
 
-void Renderer::releaseDepthBuffer() {
+void RenderModule::releaseDepthBuffer() {
     m_depthTexture.destroy();
     m_depthTexture.release();
     m_depthTextureView.release();
 }
 
-void Renderer::releaseSurfaceTexture() {
+void RenderModule::releaseSurfaceTexture() {
     m_surfaceTextureView.release();
     m_surfaceTextureTexture.release();
 }
 
-void Renderer::releaseRenderPipeline() {
-    m_renderPipeline.release();
+void RenderModule::releaseRenderPipeline() {
+    m_renderPipeline.reset();
 }
 
-void Renderer::releaseBindGroups() {
-    m_bindGroupLayout.release();
-    m_bindGroup.release();
-}
-
-void Renderer::releaseBuffers() {
-    m_indexBuffer.destroy();
-    m_indexBuffer.release();
-
-    m_vertexBuffer.destroy();
-    m_vertexBuffer.release();
-    m_uniformBuffer.destroy();
-    m_uniformBuffer.release();
-
-    m_modelBuffer.destroy();
-    m_modelBuffer.release();
-
-    m_materialBuffer.destroy();
-    m_materialBuffer.release();
+void RenderModule::releaseBuffers() {
+    m_indexBuffer.reset();
+    m_vertexBuffer.reset();
+    m_uniformBuffer.reset();
+    m_modelBuffer.reset();
+    m_materialBuffer.reset();
 
 }
 
-void Renderer::releaseShaderModule() {
-    m_shaderModule.release();
+void RenderModule::releaseShaderModule() {
+    m_shader.reset();
 }
 
-void Renderer::releaseDevice() {
-    m_queue.release();
-    m_device.release();
+void RenderModule::releaseDevice() {
+    m_device.reset();
 }
 
-void Renderer::releaseWindowAndSurface() {
-    m_surface.release();
-    SDL_RELEASE(m_window);
-    m_instance.release();
-    SDL_Quit();
-}
-
-bool Renderer::initWindowAndSurface() {
-    m_instance = createInstance(InstanceDescriptor{});
-    if (!m_instance) return false;
-
-    if (SDL_Init(SDL_INIT_VIDEO) == -1) {
-        return false;
-    }
-    SDL_SetRelativeMouseMode(SDL_TRUE);
-
-    std::cout << "initializing window" << std::endl;
-    m_window = SDL_CreateWindow("Renderer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, m_screenWidth, m_screenHeight, SDL_WINDOW_RESIZABLE);
-    if (!m_window) return false;
-
-    std::cout << "initializing surface" << std::endl;
-    m_surface = SDL_GetWGPUSurface(m_instance, m_window);
-    if (!m_surface) return false;
-    
-    return true;
-}
-
-bool Renderer::initDevice() {
-    std::cout << "initializing adapter" << std::endl;
-    RequestAdapterOptions adapterOptions;
-    adapterOptions.compatibleSurface = m_surface;
-    adapterOptions.forceFallbackAdapter = false;
-    adapterOptions.powerPreference = PowerPreference::Undefined;
-    Adapter adapter = m_instance.requestAdapter(adapterOptions);
-    if (!adapter) return false;
-
-    m_preferredFormat = m_surface.getPreferredFormat(adapter);
-
-    std::cout << "initializing device" << std::endl;
-    RequiredLimits requiredLimits;
-    requiredLimits.limits.minStorageBufferOffsetAlignment = 64;
-    requiredLimits.limits.minUniformBufferOffsetAlignment = 64;
-    requiredLimits.limits.maxUniformBufferBindingSize = sizeof(UniformData);
-    requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
-    requiredLimits.limits.maxBindGroups = 1;
-    requiredLimits.limits.maxBindingsPerBindGroup = 7;
-    requiredLimits.limits.maxVertexBuffers = 1;
-    requiredLimits.limits.maxVertexAttributes = 7;
-    requiredLimits.limits.maxBufferSize = 1000000 * sizeof(ModelData); // 1,000,000 models
-    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexData);
-    requiredLimits.limits.maxInterStageShaderComponents = 18;
-    requiredLimits.limits.maxStorageBuffersPerShaderStage = 2;
-    requiredLimits.limits.maxStorageBufferBindingSize = 1000000 * sizeof(ModelData); // 1 million objects
-
-    requiredLimits.limits.maxTextureDimension1D = 8192;
-    requiredLimits.limits.maxTextureDimension2D = 8192;
-    requiredLimits.limits.maxTextureArrayLayers = 1;
-    requiredLimits.limits.maxSampledTexturesPerShaderStage = 100;
-    requiredLimits.limits.maxSamplersPerShaderStage = 2;
-
-    DeviceDescriptor deviceDesc;
-    deviceDesc.defaultQueue = QueueDescriptor{};
-    deviceDesc.requiredFeatureCount = 2;
-    // special conversion for native features
-    std::vector<WGPUFeatureName> reqFeatures{
-        (WGPUFeatureName)NativeFeature::TextureBindingArray,
-        (WGPUFeatureName)NativeFeature::SampledTextureAndStorageBufferArrayNonUniformIndexing
-    };
-    deviceDesc.requiredFeatures = reqFeatures.data();
-    deviceDesc.requiredLimits = &requiredLimits;
-    deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const * message, void * userdata) {
-        std::cout << "Device lost! Reason: " << reason << userdata << "(\n" << message << "\n)" << std::endl;
-    };
-
-    m_device = adapter.requestDevice(deviceDesc);
-    if (!m_device) return false;
-    m_deviceErrorCallback = m_device.setUncapturedErrorCallback([](ErrorType type, char const * message) {
-        std::cout << "Device error! " << type << "(\n" << message << "\n)" << std::endl;
-    });
-
-    std::cout << "initializing queue" << std::endl;
-    m_queue = m_device.getQueue();
-    if (!m_queue) return false;
-
-    adapter.release();
-
-    return true;
+void RenderModule::releaseWindowAndSurface() {
+    m_surface.reset();
 }
 
 // returns the vertex offset of this mesh in the vertex buffer.
-int Renderer::addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData) {
+int RenderModule::addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData) {
     int vertexOffset = m_vertexCount;
     int offset = m_vertexCount * sizeof(VertexData);
     int newDataSize = (int)(vertexData.size() * sizeof(VertexData));
-    m_queue.writeBuffer(m_vertexBuffer, offset, vertexData.data(), newDataSize);
+    m_device->getQueue().writeBuffer(m_vertexBuffer->getBuffer(), offset, vertexData.data(), newDataSize);
     m_vertexCount = (int)(m_vertexCount + vertexData.size());
     return vertexOffset;
 }
 
 // returns the index offset of this mesh in the index buffer.
-int Renderer::addMeshToIndexBuffer(std::vector<uint32_t> indexData) {
+int RenderModule::addMeshToIndexBuffer(std::vector<uint32_t> indexData) {
     int indexOffset = m_indexCount;
     int offset = m_indexCount * sizeof(uint32_t);
     int newDataSize = (int)(indexData.size() * sizeof(uint32_t));
-    m_queue.writeBuffer(m_indexBuffer, offset, indexData.data(), newDataSize);
+    m_device->getQueue().writeBuffer(m_indexBuffer->getBuffer(), offset, indexData.data(), newDataSize);
     m_indexCount = (int)(m_indexCount + indexData.size());
     return indexOffset;
 }
 
 // returns the index of the material in the material buffer
-int Renderer::registerMaterial(std::shared_ptr<coho::Material> material) {
-    MaterialData md;
+int RenderModule::registerMaterial(std::shared_ptr<coho::Material> material) {
+    DefaultPipeline::MaterialData md;
     md.baseColor = material->baseColor;
     md.roughness = material->roughness;
     md.diffuseTextureIndex = 0;
@@ -368,14 +202,14 @@ int Renderer::registerMaterial(std::shared_ptr<coho::Material> material) {
     }
 
     int materialIndex = m_materialCount;
-    int offset = m_materialCount * sizeof(MaterialData);
-    writeMaterialBuffer(std::vector<MaterialData>{md}, offset);
+    int offset = m_materialCount * sizeof(DefaultPipeline::MaterialData);
+    writeMaterialBuffer(std::vector<DefaultPipeline::MaterialData>{md}, offset);
     m_materialCount += 1;
     return materialIndex;
 }
 
 // Auxiliary function for registerTexture
-void Renderer::writeMipMaps(
+void RenderModule::writeMipMaps(
 	wgpu::Texture texture,
 	wgpu::Extent3D textureSize,
 	uint32_t mipLevelCount,
@@ -427,7 +261,7 @@ void Renderer::writeMipMaps(
 		destination.mipLevel = level;
 		source.bytesPerRow = 4 * mipLevelSize.width;
 		source.rowsPerImage = mipLevelSize.height;
-		m_queue.writeTexture(destination, pixels.data(), pixels.size(), source, mipLevelSize);
+		m_device->getQueue().writeTexture(destination, pixels.data(), pixels.size(), source, mipLevelSize);
 
 		previousLevelPixels = std::move(pixels);
 		previousMipLevelSize = mipLevelSize;
@@ -437,7 +271,7 @@ void Renderer::writeMipMaps(
 }
 
 // returns the index of the registered textureView
-int Renderer::registerTexture(std::shared_ptr<coho::Texture> texture, std::string name, int mipLevelCount) {
+int RenderModule::registerTexture(std::shared_ptr<coho::Texture> texture, std::string name, int mipLevelCount) {
     wgpu::TextureDescriptor textureDesc;
     textureDesc.dimension = wgpu::TextureDimension::_2D;
     textureDesc.format = wgpu::TextureFormat::RGBA8Unorm; // png/jpeg format
@@ -450,7 +284,7 @@ int Renderer::registerTexture(std::shared_ptr<coho::Texture> texture, std::strin
     textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
     textureDesc.viewFormatCount = 0;
     textureDesc.viewFormats = nullptr;
-    wgpu::Texture registeredTexture = m_device.createTexture(textureDesc);
+    wgpu::Texture registeredTexture = m_device->createTexture(textureDesc);
     m_textureArray.push_back(registeredTexture);
 
     wgpu::TextureViewDescriptor texViewDesc;
@@ -471,68 +305,53 @@ int Renderer::registerTexture(std::shared_ptr<coho::Texture> texture, std::strin
     return texture->bufferIndex;
 }
 
-bool Renderer::initBuffers() {
+bool RenderModule::initBuffers() {
     std::cout << "initializing buffers" << std::endl;
 
     BufferDescriptor bufferDesc;
     bufferDesc.label = "vertex buffer";
     bufferDesc.usage = BufferUsage::Vertex | BufferUsage::CopyDst;
     bufferDesc.size = 1000000 * sizeof(VertexData); // 1,000,000 vertices
-    m_vertexBuffer = m_device.createBuffer(bufferDesc);
+    
+    BufferBindingLayout bindingLayout = Default;
+    bindingLayout.minBindingSize = sizeof(VertexData);
+    m_vertexBuffer = std::make_shared<coho::Buffer>(m_device, bufferDesc, bindingLayout, bufferDesc.size, bufferDesc.label);
 
-    BufferDescriptor indexBuffer;
     bufferDesc.label = "index buffer";
     bufferDesc.usage = BufferUsage::Index | BufferUsage::CopyDst;
     bufferDesc.size = 1000000 * sizeof(VertexData); // 1,000,000 indices
-    m_indexBuffer = m_device.createBuffer(bufferDesc);
+    bindingLayout.minBindingSize = sizeof(VertexData);
+    m_indexBuffer = std::make_shared<coho::Buffer>(m_device, bufferDesc, bindingLayout, bufferDesc.size, bufferDesc.label);
 
     bufferDesc.label = "model buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
-    bufferDesc.size = 1000000 * sizeof(ModelData); // 1,000,000 instances
-    m_modelBuffer = m_device.createBuffer(bufferDesc);
+    bufferDesc.size = 1000000 * sizeof(DefaultPipeline::ModelData); // 1,000,000 instances
+    bindingLayout.minBindingSize = sizeof(DefaultPipeline::ModelData);
+    m_modelBuffer = std::make_shared<coho::Buffer>(m_device, bufferDesc, bindingLayout, bufferDesc.size, bufferDesc.label);
 
     bufferDesc.label = "material buffer";
     bufferDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
-    bufferDesc.size = 100 * sizeof(MaterialData); // 100 materials
-    m_materialBuffer = m_device.createBuffer(bufferDesc);
+    bufferDesc.size = 100 * sizeof(DefaultPipeline::MaterialData); // 100 materials
+    bindingLayout.minBindingSize = sizeof(DefaultPipeline::MaterialData);
+    m_materialBuffer = std::make_shared<coho::Buffer>(m_device, bufferDesc, bindingLayout, bufferDesc.size, bufferDesc.label);
 
     bufferDesc.label = "uniform buffer";
     bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
-    bufferDesc.size = sizeof(UniformData);
-    m_uniformBuffer = m_device.createBuffer(bufferDesc);
+    bufferDesc.size = sizeof(DefaultPipeline::UniformData);
+    bindingLayout.minBindingSize = sizeof(DefaultPipeline::UniformData);
+    m_uniformBuffer = std::make_shared<coho::Buffer>(m_device, bufferDesc, bindingLayout, bufferDesc.size, bufferDesc.label);
 
     m_uniformData.time = 1.0;
     float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
     m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 1000.0f);
 
-    m_queue.writeBuffer(m_uniformBuffer, 0, &m_uniformData, sizeof(UniformData));
+    m_device->getQueue().writeBuffer(m_uniformBuffer->getBuffer(), 0, &m_uniformData, sizeof(DefaultPipeline::UniformData));
     updateViewMatrix();
 
     return true;
 }
 
-bool Renderer::initTextures() {
-    std::cout << "loading textures" << std::endl;
-
-    SamplerDescriptor samplerDesc;
-    samplerDesc.addressModeU = AddressMode::Repeat;
-    samplerDesc.addressModeV = AddressMode::Repeat;
-    samplerDesc.addressModeW = AddressMode::Repeat;
-    samplerDesc.magFilter = FilterMode::Linear;
-    samplerDesc.minFilter = FilterMode::Linear;
-    samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
-    samplerDesc.lodMaxClamp = 8.0;
-    samplerDesc.lodMinClamp = 0.0;
-    samplerDesc.maxAnisotropy = 1;
-    samplerDesc.compare = CompareFunction::Undefined;
-    m_textureSampler = m_device.createSampler(samplerDesc);
-
-    m_environmentSampler = m_device.createSampler(samplerDesc);
-    return true;
-}
-
-void Renderer::releaseTextures() {
-    m_textureSampler.release();
+void RenderModule::releaseTextures() {
 
     for (auto texture : m_textureArray) {
         texture.destroy();
@@ -544,208 +363,44 @@ void Renderer::releaseTextures() {
     }
 }
 
-bool Renderer::initBindGroups() {
-    std::cout << "initializing bind groups" << std::endl;
-    std::vector<BindGroupLayoutEntry> bindGroupLayoutEntries(5, Default);
-    // uniform layout
-    bindGroupLayoutEntries[0].binding = 0;
-    bindGroupLayoutEntries[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindGroupLayoutEntries[0].buffer.type = BufferBindingType::Uniform;
-    bindGroupLayoutEntries[0].buffer.minBindingSize = sizeof(UniformData);
-
-    // array of textures
-    BindGroupLayoutEntryExtras textureArrayLayout;
-    textureArrayLayout.count = (uint32_t)m_textureViewArray.size();
-    textureArrayLayout.chain.sType = (WGPUSType)WGPUSType_BindGroupLayoutEntryExtras;
-    textureArrayLayout.chain.next = nullptr;
-    bindGroupLayoutEntries[1].binding = 1;
-    bindGroupLayoutEntries[1].visibility = ShaderStage::Fragment;
-    bindGroupLayoutEntries[1].texture.multisampled = false;
-    bindGroupLayoutEntries[1].texture.viewDimension = TextureViewDimension::_2D;
-    bindGroupLayoutEntries[1].texture.sampleType = TextureSampleType::Float;
-    bindGroupLayoutEntries[1].nextInChain = &textureArrayLayout.chain;
-
-    // texture sampler layout
-    bindGroupLayoutEntries[2].binding = 2;
-    bindGroupLayoutEntries[2].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindGroupLayoutEntries[2].sampler.type = SamplerBindingType::Filtering;
-
-    // model buffer layout
-    bindGroupLayoutEntries[3].binding = 3;
-    bindGroupLayoutEntries[3].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindGroupLayoutEntries[3].buffer.type = BufferBindingType::ReadOnlyStorage;
-    bindGroupLayoutEntries[3].buffer.minBindingSize = sizeof(ModelData);
-
-    // material buffer layout
-    bindGroupLayoutEntries[4].binding = 4;
-    bindGroupLayoutEntries[4].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindGroupLayoutEntries[4].buffer.type = BufferBindingType::ReadOnlyStorage;
-    bindGroupLayoutEntries[4].buffer.minBindingSize = sizeof(MaterialData);
-
-    BindGroupLayoutDescriptor bindGroupLayoutDesc;
-    bindGroupLayoutDesc.entries = bindGroupLayoutEntries.data();
-    bindGroupLayoutDesc.entryCount = (uint32_t)bindGroupLayoutEntries.size();
-
-    m_bindGroupLayout = m_device.createBindGroupLayout(bindGroupLayoutDesc);
-
-    std::vector<BindGroupEntry> bindGroupEntries(5, Default);
-    bindGroupEntries[0].binding = 0;
-    bindGroupEntries[0].offset = 0;
-    bindGroupEntries[0].buffer = m_uniformBuffer;
-    bindGroupEntries[0].size = sizeof(UniformData);
-
-    BindGroupEntryExtras textureArray;
-    textureArray.textureViewCount = m_textureViewArray.size();
-    textureArray.textureViews = (WGPUTextureView*)m_textureViewArray.data();
-    textureArray.chain.sType = (WGPUSType)WGPUSType_BindGroupEntryExtras;
-    textureArray.chain.next = nullptr;
-    bindGroupEntries[1].binding = 1;
-    bindGroupEntries[1].offset = 0;
-    bindGroupEntries[1].nextInChain = &textureArray.chain;
-
-    bindGroupEntries[2].binding = 2;
-    bindGroupEntries[2].offset = 0;
-    bindGroupEntries[2].sampler = m_textureSampler;
-
-    bindGroupEntries[3].binding = 3;
-    bindGroupEntries[3].offset = 0;
-    bindGroupEntries[3].buffer = m_modelBuffer;
-    bindGroupEntries[3].size = 1000000 * sizeof(ModelData); // 1,000,000 instances
-
-    bindGroupEntries[4].binding = 4;
-    bindGroupEntries[4].offset = 0;
-    bindGroupEntries[4].buffer = m_materialBuffer;
-    bindGroupEntries[4].size = 100 * sizeof(MaterialData); // 100 materials
-
-    BindGroupDescriptor bindGroupDesc;
-    bindGroupDesc.entries = bindGroupEntries.data();
-    bindGroupDesc.entryCount = (uint32_t)bindGroupEntries.size();
-    bindGroupDesc.layout = m_bindGroupLayout;
-
-    m_bindGroup = m_device.createBindGroup(bindGroupDesc);
-
-    return true;
-}
-
-bool Renderer::initRenderPipeline() {
+bool RenderModule::initRenderPipeline() {
     std::cout << "initializing render pipeline" << std::endl;
-    RenderPipelineDescriptor renderPipelineDesc;
+    m_renderPipeline = std::make_shared<coho::DefaultPipeline>(
+        m_vertexBuffer,
+        m_indexBuffer,
+        m_uniformBuffer,
+        m_modelBuffer,
+        m_materialBuffer,
+        m_shader,
+        m_shader
+        );
 
-    std::vector<VertexAttribute> vertexAttributes(6);
-    // position
-    vertexAttributes[0].format = VertexFormat::Float32x3;
-    vertexAttributes[0].offset = offsetof(VertexData, position);
-    vertexAttributes[0].shaderLocation = 0;
-    // normal
-    vertexAttributes[1].format = VertexFormat::Float32x3;
-    vertexAttributes[1].offset = offsetof(VertexData, normal);
-    vertexAttributes[1].shaderLocation = 1;
-    // color
-    vertexAttributes[2].format = VertexFormat::Float32x3;
-    vertexAttributes[2].offset = offsetof(VertexData, color);
-    vertexAttributes[2].shaderLocation = 2;
-    // tangent
-    vertexAttributes[3].format = VertexFormat::Float32x3;
-    vertexAttributes[3].offset = offsetof(VertexData, tangent);
-    vertexAttributes[3].shaderLocation = 3;
-    // bitangent 
-    vertexAttributes[4].format = VertexFormat::Float32x3;
-    vertexAttributes[4].offset = offsetof(VertexData, bitangent);
-    vertexAttributes[4].shaderLocation = 4;
-    // uv
-    vertexAttributes[5].format = VertexFormat::Float32x2;
-    vertexAttributes[5].offset = offsetof(VertexData, uv);
-    vertexAttributes[5].shaderLocation = 5;
-
-    VertexBufferLayout vertexBufferLayout;
-    vertexBufferLayout.arrayStride = sizeof(VertexData);
-    vertexBufferLayout.attributes = vertexAttributes.data();
-    vertexBufferLayout.attributeCount = (uint32_t)vertexAttributes.size();
-    vertexBufferLayout.stepMode = VertexStepMode::Vertex;
-
-    renderPipelineDesc.vertex.bufferCount = 1;
-    renderPipelineDesc.vertex.buffers = &vertexBufferLayout;
-    renderPipelineDesc.vertex.constantCount = 0;
-    renderPipelineDesc.vertex.constants = 0;
-    renderPipelineDesc.vertex.entryPoint = "vs_main";
-    renderPipelineDesc.vertex.module = m_shaderModule;
-
-    BlendState blendState;
-    blendState.color.srcFactor = BlendFactor::SrcAlpha;
-    blendState.color.dstFactor = BlendFactor::OneMinusSrcAlpha;
-    blendState.color.operation = BlendOperation::Add;
-
-    blendState.alpha.srcFactor = BlendFactor::Zero;
-    blendState.alpha.dstFactor = BlendFactor::One;
-    blendState.alpha.operation = BlendOperation::Add;
-
-    ColorTargetState colorTargetState;
-    colorTargetState.format = m_preferredFormat;
-    colorTargetState.blend = &blendState;
-    colorTargetState.writeMask = ColorWriteMask::All;
-
-    FragmentState fragmentState;
-    fragmentState.constantCount = 0;
-    fragmentState.constants = nullptr;
-    fragmentState.entryPoint = "fs_main";
-    fragmentState.module = m_shaderModule;
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTargetState;
-    renderPipelineDesc.fragment = &fragmentState;
-
-    renderPipelineDesc.primitive.cullMode = CullMode::Back;
-    renderPipelineDesc.primitive.frontFace = FrontFace::CCW;
-    renderPipelineDesc.primitive.topology = PrimitiveTopology::TriangleList; 
-    renderPipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
-
-    DepthStencilState depthStencilState = Default;
-    depthStencilState.depthCompare = CompareFunction::Less;
-	depthStencilState.depthWriteEnabled = true;
-	depthStencilState.format = m_depthTextureFormat;
-	depthStencilState.stencilReadMask = 0;
-	depthStencilState.stencilWriteMask = 0;
-
-    renderPipelineDesc.depthStencil = &depthStencilState;
-
-    renderPipelineDesc.multisample.count = 1;
-    renderPipelineDesc.multisample.mask = ~0u;
-	renderPipelineDesc.multisample.alphaToCoverageEnabled = false;
-
-    
-    PipelineLayoutDescriptor pipelineLayoutDesc;
-    pipelineLayoutDesc.bindGroupLayoutCount = 1;
-    pipelineLayoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&m_bindGroupLayout;
-
-    renderPipelineDesc.layout = m_device.createPipelineLayout(pipelineLayoutDesc);
-
-    m_renderPipeline = m_device.createRenderPipeline(renderPipelineDesc);
-    if (!m_renderPipeline) return false;
+    std::cout << "running render pipeline init tasks" << std::endl;
+    if (!m_renderPipeline->init(*m_device, m_preferredFormat, m_textureViewArray)) {
+        std::cout << "failed to init render pipeline!" << std::endl;
+        return false;
+    }
 
     return true;
 }
 
-bool Renderer::initShaderModule() {
+bool RenderModule::initShaderModule() {
     std::cout << "initializing shader module" << std::endl;
-    ShaderModuleWGSLDescriptor shaderModuleWGSLDesc;
-    std::string shaderCode = ResourceLoader::loadShaderCode(RESOURCE_DIR "/shaders/shader.wgsl");
-    shaderModuleWGSLDesc.code = shaderCode.c_str();
-    shaderModuleWGSLDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
-    shaderModuleWGSLDesc.chain.next = nullptr;
+    m_shader = std::make_shared<coho::Shader>(RESOURCE_DIR, "shaders/shader.wgsl", m_device);
     
-    ShaderModuleDescriptor shaderModuleDesc;
-    shaderModuleDesc.hintCount = 0;
-    shaderModuleDesc.hints = nullptr;
-    shaderModuleDesc.nextInChain = &shaderModuleWGSLDesc.chain;
-    m_shaderModule = m_device.createShaderModule(shaderModuleDesc);
+    if (m_shader->getShaderModule() == nullptr) {
+        std::cout << "failed to init shader module" << std::endl;
+        return false;
+    }
 
     return true;
 }
 
-bool Renderer::initSurfaceTexture() {
+bool RenderModule::initSurfaceTexture() {
     std::cout << "initializing surface texture" << std::endl;
     SurfaceConfiguration surfaceConfig;
     surfaceConfig.alphaMode = CompositeAlphaMode::Auto;
-    surfaceConfig.device = m_device;
+    surfaceConfig.device = *m_device;
     surfaceConfig.format = m_preferredFormat;
     surfaceConfig.height = m_screenHeight;
     surfaceConfig.width = m_screenWidth;
@@ -754,10 +409,10 @@ bool Renderer::initSurfaceTexture() {
     surfaceConfig.viewFormatCount = 1;
     surfaceConfig.viewFormats = (WGPUTextureFormat*)&m_preferredFormat;
 
-    m_surface.configure(surfaceConfig);
+    m_surface->configure(surfaceConfig);
 
     std::cout << "creating the surface texture" << std::endl;
-    m_surface.getCurrentTexture(&m_surfaceTexture);
+    m_surface->getCurrentTexture(&m_surfaceTexture);
     m_surfaceTextureTexture = m_surfaceTexture.texture;
 
     TextureViewDescriptor surfaceViewDesc;
@@ -772,7 +427,7 @@ bool Renderer::initSurfaceTexture() {
     return true;
 }
 
-bool Renderer::initDepthBuffer() {
+bool RenderModule::initDepthBuffer() {
     std::cout << "initializing depth buffer" << std::endl;
     TextureDescriptor depthTextureDesc;
     depthTextureDesc.dimension = TextureDimension::_2D;
@@ -786,7 +441,7 @@ bool Renderer::initDepthBuffer() {
     depthTextureDesc.viewFormatCount = 1;
     depthTextureDesc.viewFormats = (WGPUTextureFormat*)&m_depthTextureFormat;
 
-    m_depthTexture = m_device.createTexture(depthTextureDesc);
+    m_depthTexture = m_device->createTexture(depthTextureDesc);
 
     TextureViewDescriptor depthTextureViewDesc;
     depthTextureViewDesc.baseArrayLayer = 0;
@@ -811,28 +466,28 @@ bool Renderer::initDepthBuffer() {
     samplerDesc.lodMinClamp = 0.0;
     samplerDesc.maxAnisotropy = 1;
     samplerDesc.compare = CompareFunction::LessEqual;
-    m_depthSampler = m_device.createSampler(samplerDesc);
+    m_depthSampler = m_device->createSampler(samplerDesc);
     
     return true;
 }
 
-void Renderer::updateProjectionMatrix() {
+void RenderModule::updateProjectionMatrix() {
     float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
     m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 1000.0f);
-    m_queue.writeBuffer(m_uniformBuffer, offsetof(UniformData, projection_matrix), &m_uniformData.projection_matrix, sizeof(UniformData::projection_matrix));
+    m_device->getQueue().writeBuffer(m_uniformBuffer->getBuffer(), offsetof(DefaultPipeline::UniformData, projection_matrix), &m_uniformData.projection_matrix, sizeof(DefaultPipeline::UniformData::projection_matrix));
 }
 
-void Renderer::updateViewMatrix() {
+void RenderModule::updateViewMatrix() {
     m_uniformData.camera_world_position = m_camera.position;
     m_uniformData.view_matrix = glm::lookAt(m_camera.position - m_camera.forward, m_camera.position, m_camera.up);
-	m_queue.writeBuffer(m_uniformBuffer,
+	m_device->getQueue().writeBuffer(m_uniformBuffer->getBuffer(),
 		0,
 		&m_uniformData,
-		sizeof(UniformData)
+		sizeof(DefaultPipeline::UniformData)
 	);
 }
 
-void Renderer::resizeWindow(int new_width, int new_height) {
+void RenderModule::resizeWindow(int new_width, int new_height) {
     std::cout << "resizing window" << std::endl;
     m_screenWidth = new_width;
     m_screenHeight = new_height;
@@ -846,10 +501,10 @@ void Renderer::resizeWindow(int new_width, int new_height) {
     updateProjectionMatrix();
 }
 
-glm::vec2 Renderer::getScreenDimensions() {
+glm::vec2 RenderModule::getScreenDimensions() {
     return glm::vec2(m_screenWidth, m_screenHeight);
 }
 
-SDL_Window* Renderer::getWindow() {
+SDL_Window* RenderModule::getWindow() {
     return m_window;
 }

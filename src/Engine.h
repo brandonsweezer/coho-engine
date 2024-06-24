@@ -24,7 +24,7 @@ public:
 
     uint32_t randomInt(uint32_t max);
 
-    std::shared_ptr<Renderer> renderModule = nullptr;
+    std::shared_ptr<RenderModule> renderModule = nullptr;
     std::shared_ptr<EntityManager> entityManager = nullptr;
     std::shared_ptr<InputManager> inputManager = nullptr;
     std::shared_ptr<TerrainManager> terrainManager = nullptr;
@@ -36,7 +36,7 @@ private:
     void setupBindings();
     void wrapCursor(SDL_Event e);
 
-    void initGPU();
+    bool initGPU();
 private:
     RandomNumberGenerator m_random;
     bool m_isRunning = false;
@@ -55,5 +55,9 @@ private:
     std::unique_ptr<wgpu::ErrorCallback> m_deviceErrorCallback;
     wgpu::Instance m_instance = nullptr;
     SDL_Window* m_window = nullptr;
-    wgpu::Surface m_surface = nullptr;
+    std::shared_ptr<wgpu::Surface> m_surface;
+
+    wgpu::TextureFormat m_preferredFormat = wgpu::TextureFormat::BGRA8Unorm;
+    int m_screenWidth = 720;
+    int m_screenHeight = 480;
 };

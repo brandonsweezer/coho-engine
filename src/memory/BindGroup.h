@@ -5,8 +5,14 @@ namespace coho {
 class BindGroup {
 public:
     BindGroup();
-    ~BindGroup();
-private:
 
+    ~BindGroup() {
+        m_bindGroup.release();
+        m_bindGroupLayout.release();
+    };
+
+private:
+    wgpu::BindGroupLayout m_bindGroupLayout = nullptr;
+    wgpu::BindGroup m_bindGroup = nullptr;
 };
 }

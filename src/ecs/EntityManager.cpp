@@ -21,7 +21,7 @@ EntityManager::~EntityManager() {
     camera.reset();
 }
 
-void EntityManager::addDefaultMaterial(std::shared_ptr<Renderer> renderModule) {
+void EntityManager::addDefaultMaterial(std::shared_ptr<RenderModule> renderModule) {
     std::shared_ptr<Texture> defaultTexture = std::make_shared<Texture>();
     defaultTexture->channels = 4;
     defaultTexture->width = 1;
@@ -41,7 +41,7 @@ void EntityManager::addDefaultMaterial(std::shared_ptr<Renderer> renderModule) {
     addMaterial(defaultMaterial, renderModule);
 }
 
-int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderModule) {
+int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<RenderModule> renderModule) {
     if (entity->hasComponent<InstanceComponent>()) {
         return addInstance(entity, renderModule);
     }
@@ -53,7 +53,7 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
     m_entities.push_back(entity);
     m_renderableEntities.push_back(entity);
 
-    Renderer::ModelData modelData;
+    DefaultPipeline::ModelData modelData;
     modelData.materialIndex = 0; // default material
 
     // write the transform to the model data
@@ -69,9 +69,9 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
     }
 
     // write the model buffer
-    std::vector<Renderer::ModelData> mds = { modelData };
+    std::vector<DefaultPipeline::ModelData> mds = { modelData };
     renderModule->writeModelBuffer(mds, m_nextModelBufferOffset);
-    m_nextModelBufferOffset += sizeof(Renderer::ModelData);
+    m_nextModelBufferOffset += sizeof(DefaultPipeline::ModelData);
 
     // write the mesh vertices to the vertex buffer
     std::shared_ptr<Mesh> mesh = entity->getComponent<MeshComponent>()->mesh;
@@ -90,7 +90,7 @@ int EntityManager::addEntity(std::shared_ptr<Entity> entity, std::shared_ptr<Ren
 
 // todo: pass array of instances and write to model buffer en-mass 
 // these sequential queue operations are killer
-int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<Renderer> renderModule) {
+int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<RenderModule> renderModule) {
     if (!entity->hasComponent<InstanceComponent>()) {
         std::cout << "ERROR: No instance component found on entity!" << std::endl;
         return -1;
@@ -102,7 +102,7 @@ int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<R
     m_nextId = m_nextId + 1;
     m_entities.push_back(entity);
 
-    Renderer::ModelData modelData;
+    DefaultPipeline::ModelData modelData;
     glm::mat4x4 transform = entity->getComponent<TransformComponent>()->transform->getMatrix();
     modelData.transform = transform;
     modelData.materialIndex = 0;
@@ -116,14 +116,14 @@ int EntityManager::addInstance(std::shared_ptr<Entity> entity, std::shared_ptr<R
         modelData.materialIndex = material->materialIndex;
     }
 
-    std::vector<Renderer::ModelData> mds = { modelData };
+    std::vector<DefaultPipeline::ModelData> mds = { modelData };
     renderModule->writeModelBuffer(mds, m_nextModelBufferOffset);
-    m_nextModelBufferOffset += sizeof(Renderer::ModelData);
+    m_nextModelBufferOffset += sizeof(DefaultPipeline::ModelData);
     
     return id;
 }
 
-int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer> renderModule) {
+int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<RenderModule> renderModule) {
     int id = m_nextId;
     sky->setId(m_nextId);
     m_nextId = m_nextId + 1;
@@ -131,7 +131,7 @@ int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer>
     m_sky = sky;
 
     glm::mat4x4 transform = sky->getComponent<TransformComponent>()->transform->getMatrix();
-    Renderer::ModelData modelData;
+    DefaultPipeline::ModelData modelData;
     modelData.materialIndex = 0;
     modelData.transform = transform;
     modelData.isSkybox = 1;
@@ -143,9 +143,9 @@ int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer>
         modelData.materialIndex = skymaterial->materialIndex;
     }
 
-    std::vector<Renderer::ModelData> mds = { modelData };
+    std::vector<DefaultPipeline::ModelData> mds = { modelData };
     renderModule->writeModelBuffer(mds, m_nextModelBufferOffset);
-    m_nextModelBufferOffset += sizeof(Renderer::ModelData);
+    m_nextModelBufferOffset += sizeof(DefaultPipeline::ModelData);
 
     std::shared_ptr<Mesh> mesh = sky->getComponent<MeshComponent>()->mesh;
     std::vector<Mesh::VertexData> vds = mesh->m_vertexData;
@@ -162,7 +162,7 @@ int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<Renderer>
 }
 
 // registers the material with the renderModule, assigns it an id, and returns the id
-int EntityManager::addMaterial(std::shared_ptr<Material> material, std::shared_ptr<Renderer> renderModule) {
+int EntityManager::addMaterial(std::shared_ptr<Material> material, std::shared_ptr<RenderModule> renderModule) {
     int materialBufferIndex = renderModule->registerMaterial(material);
     m_materials.push_back(material);
     int materialId = (int)m_materials.size() - 1;

@@ -3,40 +3,32 @@
 #include "../ecs/components/Mesh.h"
 #include "../ecs/components/Texture.h"
 #include "../ecs/components/Material.h"
+
+#include "../memory/Buffer.h"
+#include "../memory/Shader.h"
+
+#include "../resources/pipelines/default.h"
+
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.hpp>
 #include <sdl2webgpu/sdl2webgpu.h>
 #include <glm/glm.hpp>
 #include <vector>
 
-class Renderer
+class RenderModule
 {
 
 public:
-    struct ModelData {
-        glm::mat4x4 transform;
-        uint32_t materialIndex;
-        uint32_t isSkybox;
-        float padding[2]; // need to chunk into 4x4x4 sections (4x4 floats)
-    };
 
-    struct MaterialData {
-        glm::vec3 baseColor;
-        uint32_t diffuseTextureIndex;
-        uint32_t normalTextureIndex;
-        float roughness;
-        float padding[2];
-    };
-
-    Renderer();
-    ~Renderer();
+    RenderModule(int screenWidth, int screenHeight, std::shared_ptr<wgpu::Device> device, std::shared_ptr<wgpu::Surface> surface);
+    ~RenderModule();
 
     bool startup();
     
     bool isRunning();
     void onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time);
-    void writeModelBuffer(std::vector<ModelData> modelData, int offset);
-    void writeMaterialBuffer(std::vector<MaterialData> materialData, int offset);
+    void writeModelBuffer(std::vector<DefaultPipeline::ModelData> modelData, int offset);
+    void writeMaterialBuffer(std::vector<DefaultPipeline::MaterialData> materialData, int offset);
     int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
     int addMeshToIndexBuffer(std::vector<uint32_t> indexData);
     void resizeWindow(int new_width, int new_height);
@@ -52,27 +44,6 @@ public:
         glm::vec3 up;
     };
     Camera m_camera;
-
-    struct DragState {
-		bool active = false;
-		glm::vec2 startMouse;
-		Camera startCameraState;
-		float sensitivity = 0.01f;
-		float scrollSensitivity = 0.1f;
-
-		glm::vec2 velocity = {0.0, 0.0};
-		glm::vec2 previousDelta;
-		float inertia = 0.9f;
-	};
-    DragState m_dragState;
-
-    struct UniformData {
-        glm::mat4x4 view_matrix;
-        glm::mat4x4 projection_matrix;
-        glm::vec3 camera_world_position;
-        float time;
-        float padding[3]; // need to chunk into 4x4x4 sections (4x4 floats)
-    };
 
     void updateProjectionMatrix();
     void updateViewMatrix();
@@ -105,7 +76,6 @@ private:
     bool initBuffers();
     void releaseBuffers();
 
-    bool initTextures();
     void releaseTextures();
 
     bool initBindGroups();
@@ -126,37 +96,35 @@ private:
 
     bool m_isRunning = true;
 
-    UniformData m_uniformData;
+    DefaultPipeline::UniformData m_uniformData;
 
-    wgpu::Instance m_instance = nullptr;
     SDL_Window* m_window = nullptr;
-    wgpu::Surface m_surface = nullptr;
+    std::shared_ptr<wgpu::Surface> m_surface;
     wgpu::Texture m_surfaceTextureTexture = nullptr;
     wgpu::TextureView m_surfaceTextureView = nullptr;
     wgpu::SurfaceTexture m_surfaceTexture;
-    wgpu::Device m_device = nullptr;
-    wgpu::Queue m_queue = nullptr;
-    wgpu::ShaderModule m_shaderModule = nullptr;
+    std::shared_ptr<wgpu::Device> m_device = nullptr;
+    std::shared_ptr<coho::Shader> m_shader = nullptr;
 
     wgpu::TextureFormat m_preferredFormat = wgpu::TextureFormat::BGRA8Unorm;
     wgpu::TextureFormat m_depthTextureFormat = wgpu::TextureFormat::Depth24Plus;
 
-    wgpu::BindGroupLayout m_bindGroupLayout = nullptr;
-    wgpu::BindGroup m_bindGroup = nullptr;
-    wgpu::RenderPipeline m_renderPipeline = nullptr;
+    std::shared_ptr<coho::DefaultPipeline> m_renderPipeline;
 
     std::unique_ptr<wgpu::ErrorCallback> m_deviceErrorCallback;
 
-    wgpu::Buffer m_indexBuffer = nullptr;
+    std::shared_ptr<coho::Buffer> m_indexBuffer;
     int m_indexCount = 0;
 
-    wgpu::Buffer m_vertexBuffer = nullptr;
+    std::shared_ptr<coho::Buffer> m_vertexBuffer;
     int m_vertexCount = 0;
 
-    wgpu::Buffer m_modelBuffer = nullptr;
+    std::shared_ptr<coho::Buffer> m_modelBuffer;
 
-    wgpu::Buffer m_materialBuffer = nullptr;
+    std::shared_ptr<coho::Buffer> m_materialBuffer;
     int m_materialCount = 0;
+
+    std::shared_ptr<coho::Buffer> m_uniformBuffer;
 
     // textures
     std::vector<wgpu::Texture> m_textureArray;
@@ -165,7 +133,6 @@ private:
     wgpu::Sampler m_textureSampler = nullptr;
     wgpu::Sampler m_environmentSampler = nullptr;
 
-    wgpu::Buffer m_uniformBuffer = nullptr;
 
     wgpu::Texture m_depthTexture = nullptr;
     wgpu::TextureView m_depthTextureView = nullptr;
