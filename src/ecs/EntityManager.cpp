@@ -178,6 +178,7 @@ std::vector<std::shared_ptr<Entity>> EntityManager::getAllEntities() {
     return m_entities;
 }
 
+// todo: frustum culling? (m_camera)
 std::vector<std::shared_ptr<Entity>> EntityManager::getRenderableEntities() {
     return m_renderableEntities;
 }

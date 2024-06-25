@@ -8,6 +8,7 @@
 #include "../resources/pipelines/default.h"
 #include "../resources/renderpass/skybox.h"
 #include "../resources/renderpass/geometry.h"
+#include "../resources/renderpass/terrain.h"
 
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
@@ -38,6 +39,22 @@ RenderModule::~RenderModule() {
     terminate();
 }
 
+void RenderModule::addTerrainPipeline(
+        std::shared_ptr<TerrainPipeline> pipeline,
+        std::shared_ptr<coho::Buffer> vertexBuffer,
+        uint32_t vertexCount,
+        std::shared_ptr<coho::Buffer> indexBuffer,
+        uint32_t indexCount,
+        std::shared_ptr<coho::Buffer> uniformBuffer
+        ) {
+    m_terrainvertexBuffer = vertexBuffer;
+    m_terrainvertexCount = vertexCount;
+    m_terrainindexBuffer = indexBuffer;
+    m_terrainindexCount = indexCount;
+    m_terrainPipeline = pipeline;
+    m_terrainuniformBuffer = uniformBuffer;
+}
+
 void RenderModule::writeModelBuffer(std::vector<DefaultPipeline::ModelData> modelData, int offset = 0) {
     m_device->getQueue().writeBuffer(m_modelBuffer->getBuffer(), offset, modelData.data(), modelData.size() * sizeof(DefaultPipeline::ModelData));
 }
@@ -46,9 +63,13 @@ void RenderModule::writeMaterialBuffer(std::vector<DefaultPipeline::MaterialData
     m_device->getQueue().writeBuffer(m_materialBuffer->getBuffer(), offset, materialData.data(), materialData.size() * sizeof(DefaultPipeline::MaterialData));
 }
 
-void RenderModule::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time) {
+void RenderModule::onFrame(
+        std::vector<std::shared_ptr<Entity>> terrainPatches,
+        std::vector<std::shared_ptr<Entity>> entities,
+        std::shared_ptr<Entity> sky, float time) {
     m_uniformData.time = time;
     m_device->getQueue().writeBuffer(m_uniformBuffer->getBuffer(), offsetof(DefaultPipeline::UniformData, time), &m_uniformData.time, sizeof(DefaultPipeline::UniformData::time));
+    m_device->getQueue().writeBuffer(m_terrainuniformBuffer->getBuffer(), 0, &m_uniformData, sizeof(TerrainPipeline::UniformData));
     
     // ~~~
     m_surfaceTextureTexture.release();
@@ -75,7 +96,22 @@ void RenderModule::onFrame(std::vector<std::shared_ptr<Entity>> entities, std::s
     
     skyBoxRenderPass(sky);
     geometryRenderPass(entities);
+    terrainRenderPass(terrainPatches);
     m_surface->present();
+}
+
+void RenderModule::terrainRenderPass(std::vector<std::shared_ptr<Entity>> patches) {
+    TerrainRenderPass::render(*m_device,
+        m_surfaceTextureView,
+        m_depthTextureView,
+        m_terrainPipeline->getRenderPipeline(),
+        m_terrainvertexBuffer->getBuffer(),
+        m_terrainvertexCount * sizeof(VertexData),
+        m_terrainindexBuffer->getBuffer(),
+        m_terrainindexCount * sizeof(uint32_t),
+        m_terrainPipeline->m_bindGroup,
+        patches
+    );
 }
 
 void RenderModule::skyBoxRenderPass(std::shared_ptr<Entity> sky) {
@@ -142,14 +178,20 @@ void RenderModule::releaseSurfaceTexture() {
 
 void RenderModule::releaseRenderPipeline() {
     m_renderPipeline.reset();
+    m_terrainPipeline.reset();
 }
 
 void RenderModule::releaseBuffers() {
     m_indexBuffer.reset();
+    m_terrainindexBuffer.reset();
     m_vertexBuffer.reset();
+    m_terrainvertexBuffer.reset();
     m_uniformBuffer.reset();
+    m_terrainuniformBuffer.reset();
     m_modelBuffer.reset();
+    m_terrainmodelBuffer.reset();
     m_materialBuffer.reset();
+    m_terrainmaterialBuffer.reset();
 
 }
 
@@ -378,6 +420,12 @@ bool RenderModule::initRenderPipeline() {
     std::cout << "running render pipeline init tasks" << std::endl;
     if (!m_renderPipeline->init(*m_device, m_preferredFormat, m_textureViewArray)) {
         std::cout << "failed to init render pipeline!" << std::endl;
+        return false;
+    }
+
+    std::cout << "running terrain pipeline init tasks" << std::endl;
+    if (!m_terrainPipeline->init(*m_device, m_preferredFormat)) {
+        std::cout << "failed to init terrain pipeline!" << std::endl;
         return false;
     }
 

@@ -42,8 +42,15 @@ Engine::Engine() {
     std::cout << "}" << std::endl;
 
     std::cout << "initializing terrainManager {" << std::endl;
-    terrainManager = std::make_shared<TerrainManager>();
-    entityManager->addEntity(terrainManager->getTerrainPatch(), renderModule);
+    terrainManager = std::make_shared<TerrainManager>(m_device, 8);
+    renderModule->addTerrainPipeline(
+        terrainManager->getPipeline(),
+        terrainManager->getVertexBuffer(),
+        terrainManager->getVertexCount(),
+        terrainManager->getIndexBuffer(),
+        terrainManager->getIndexCount(),
+        terrainManager->getUniformBuffer()
+        );
     std::cout << "}" << std::endl;
 
     std::cout << "initializing random number generator {" << std::endl;
@@ -159,7 +166,11 @@ void Engine::updateCamera() {
 
 void Engine::draw() {
     updateCamera();
-    renderModule->onFrame(entityManager->getRenderableEntities(), entityManager->getSky(), m_time);
+    renderModule->onFrame(
+        terrainManager->getTerrainPatches(renderModule->m_camera),
+        entityManager->getRenderableEntities(),
+        entityManager->getSky(),
+        m_time);
 
     m_lastMouseState = inputManager->getMouseState();
 }

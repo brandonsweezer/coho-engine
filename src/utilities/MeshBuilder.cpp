@@ -245,6 +245,79 @@ std::shared_ptr<Mesh> MeshBuilder::createUVSphere(int rows, int columns, float r
 
     return uvSphereMesh;
 }
+std::shared_ptr<Mesh> MeshBuilder::createTerrainPatch(float width, float height, int lod) {
+    std::vector<Mesh::VertexData> vertices;
+    std::vector<uint32_t> indices;
+    int patchVertexCount = 0;
+    for (int patchX = 0; patchX <= lod; patchX++) { // each patch consists of LOD number of fans in each direction.
+        for (int patchZ = 0; patchZ <= lod; patchZ++) {
+            for (float x = -0.5; x <= 0.5; x += 0.5) {
+                for (float z = -0.5; z <= 0.5; z += 0.5) {
+                    Mesh::VertexData vd;
+                    float xPos;
+                    float zPos;
+                    if (lod== 0) {
+                        xPos = x * width;
+                        zPos = z * height;
+                    } else {
+                        xPos = (patchX * (width / float(lod))) + (x * (width / float(lod)));
+                        zPos = (patchZ * (height / float(lod))) + (z * (height / float(lod)));
+                    }
+                    
+                    vd.position = glm::vec3(xPos, 0, zPos);
+                    vd.uv = glm::vec2(xPos / width, zPos / height);
+                    vd.normal = glm::vec3(0, 1, 0);
+                    vd.color = glm::vec3(1,0,0);
+                    
+                    vertices.push_back(vd);
+                }
+            }
+            int baseIndex = patchVertexCount;
+
+            // Indices for the triangle fan of the current patch
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 0);
+            indices.push_back(baseIndex + 3);
+
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 1);
+            indices.push_back(baseIndex + 0);
+
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 2);
+            indices.push_back(baseIndex + 1);
+
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 5);
+            indices.push_back(baseIndex + 2);
+
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 8);
+            indices.push_back(baseIndex + 5);
+
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 7);
+            indices.push_back(baseIndex + 8);
+
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 6);
+            indices.push_back(baseIndex + 7);
+
+            indices.push_back(baseIndex + 4);
+            indices.push_back(baseIndex + 3);
+            indices.push_back(baseIndex + 6);
+
+            patchVertexCount += 9; // 3x3 grid
+        }
+    }
+
+    VertexDataCalculations::vertexDataCalculations(vertices);
+    std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
+    mesh->setVertexData(vertices);
+    mesh->setIndexData(indices);
+
+    return mesh;
+}
 
 std::shared_ptr<Mesh> MeshBuilder::createPlane(float width, float height, uint32_t indicesX, uint32_t indicesY) {
     float stepX = width / indicesX;

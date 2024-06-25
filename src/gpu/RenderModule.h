@@ -8,6 +8,7 @@
 #include "../memory/Shader.h"
 
 #include "../resources/pipelines/default.h"
+#include "../resources/pipelines/terrain.h"
 
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.hpp>
@@ -26,12 +27,24 @@ public:
     bool startup();
     
     bool isRunning();
-    void onFrame(std::vector<std::shared_ptr<Entity>> entities, std::shared_ptr<Entity> sky, float time);
+    void onFrame(
+        std::vector<std::shared_ptr<Entity>> terrainPatches,
+        std::vector<std::shared_ptr<Entity>> entities,
+        std::shared_ptr<Entity> sky,
+        float time);
     void writeModelBuffer(std::vector<DefaultPipeline::ModelData> modelData, int offset);
     void writeMaterialBuffer(std::vector<DefaultPipeline::MaterialData> materialData, int offset);
     int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
     int addMeshToIndexBuffer(std::vector<uint32_t> indexData);
     void resizeWindow(int new_width, int new_height);
+
+    void addTerrainPipeline(std::shared_ptr<TerrainPipeline> pipeline,
+        std::shared_ptr<coho::Buffer> vertexBuffer,
+        uint32_t vertexCount,
+        std::shared_ptr<coho::Buffer> indexBuffer,
+        uint32_t indexCount,
+        std::shared_ptr<coho::Buffer> uniformBuffer
+        );
 
     int registerMaterial(std::shared_ptr<coho::Material> material);
     int registerTexture(std::shared_ptr<coho::Texture> texture, std::string filename, int mipLevelCount = 8);
@@ -88,6 +101,7 @@ private:
     void releaseDepthBuffer();
 
     void geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities);
+    void terrainRenderPass(std::vector<std::shared_ptr<Entity>> patches);
     void skyBoxRenderPass(std::shared_ptr<Entity> sky);
 
 private:
@@ -110,20 +124,29 @@ private:
     wgpu::TextureFormat m_depthTextureFormat = wgpu::TextureFormat::Depth24Plus;
 
     std::shared_ptr<coho::DefaultPipeline> m_renderPipeline;
+    std::shared_ptr<coho::TerrainPipeline> m_terrainPipeline;
 
     std::unique_ptr<wgpu::ErrorCallback> m_deviceErrorCallback;
 
     std::shared_ptr<coho::Buffer> m_indexBuffer;
+    std::shared_ptr<coho::Buffer> m_terrainindexBuffer;
+    int m_terrainindexCount = 0;
     int m_indexCount = 0;
 
+    std::shared_ptr<coho::Buffer> m_terrainvertexBuffer;
     std::shared_ptr<coho::Buffer> m_vertexBuffer;
+    int m_terrainvertexCount = 0;
     int m_vertexCount = 0;
 
+    std::shared_ptr<coho::Buffer> m_terrainmodelBuffer;
     std::shared_ptr<coho::Buffer> m_modelBuffer;
 
+    std::shared_ptr<coho::Buffer> m_terrainmaterialBuffer;
     std::shared_ptr<coho::Buffer> m_materialBuffer;
+    int m_terrainmaterialCount = 0;
     int m_materialCount = 0;
 
+    std::shared_ptr<coho::Buffer> m_terrainuniformBuffer;
     std::shared_ptr<coho::Buffer> m_uniformBuffer;
 
     // textures
