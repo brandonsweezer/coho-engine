@@ -199,15 +199,15 @@ fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_in
     let modelData = modelBuffer[instance_id];
     var worldPosition = modelData.transform * vec4f(in.position, 1.0);
 
-    let noiseInput = worldPosition.xyz + (uUniformData.time * 1.);
-    worldPosition.y = fbm(noiseInput, 0.5, 8u, .01) * 2.;
+    let noiseInput = worldPosition.xyz;
+    worldPosition.y = mapZeroToOne(fbm(noiseInput, 0.5, 8u, .01)) * 50.;
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
 
     out.tangent = (modelData.transform * vec4f(in.tangent, 0.0)).xyz;
 	out.bitangent = (modelData.transform * vec4f(in.bitangent, 0.0)).xyz;
     out.normal = (modelData.transform * vec4f(in.normal, 0.0)).xyz;
     out.viewDirection = uUniformData.camera_world_position - worldPosition.xyz;
-    out.color = vec3f(worldPosition.y);
+    out.color = vec3f(worldPosition.y) / 25.;
     out.uv = in.uv;
     out.instance_id = instance_id;
     
@@ -242,12 +242,14 @@ fn fs_main (in: VertexOutput) -> @location(0) vec4f {
     );
     
     let worldN = localToWorld * (2.0*in.normal - 1.0);
-    let N = normalize(mix(worldN, in.normal, 0.));
+    
+    // todo: need to figure out how to get the real normal
+    var N = normalize(mix(worldN, in.normal, 0.));
 
     var lightPositions = array(
         // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
         // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
-        vec3f(1.0, 1.0, 1.0),
+        vec3f(0.0, 1000.0, 0.0),
         // vec3f(5.0, -2.0, 5.0)
     );
     let V = normalize(in.viewDirection);

@@ -2,6 +2,7 @@
 #include "Terrain.h"
 #include "../ecs/components/MeshComponent.h"
 #include "../ecs/components/TransformComponent.h"
+#include "../ecs/components/InstanceComponent.h"
 
 using namespace wgpu;
 
@@ -20,7 +21,8 @@ TerrainManager::TerrainManager(std::shared_ptr<wgpu::Device> device, int numLods
     // generate all Lods
     for (int lod = 0; lod <= numLods; ++lod) {
         std::cout << "creating patch for lod: " << lod << std::endl;
-        TerrainPatch patch = TerrainPatch(10, 10, lod);
+        float terrainSize = 100.0;
+        TerrainPatch patch = TerrainPatch(terrainSize, terrainSize, lod);
 
         // register Lods in terrain vertex buffer
         std::shared_ptr<Entity> patchEntity = std::make_shared<Entity>();
@@ -29,6 +31,23 @@ TerrainManager::TerrainManager(std::shared_ptr<wgpu::Device> device, int numLods
         patch.setPrototype(patchEntity);
         addPatch(patchEntity);
         m_patchLods.push_back(patch);
+
+        std::cout << "creating instances for lod: " << lod << std::endl;
+        // 100x100 grid of terrain
+        // add each lod 100x100 times 
+        for (int z = 0; z < 100; z++) {
+            for (int x = 0; x < 100; x++) {
+                std::shared_ptr<Entity> entity = std::make_shared<Entity>();
+                auto prototype = m_patchLods[lod].getPrototype();
+                entity->addComponent<InstanceComponent>()->prototype = prototype;
+                entity->addComponent<MeshComponent>()->mesh = prototype->getComponent<MeshComponent>()->mesh;
+                entity->addComponent<TransformComponent>()->transform->setPosition(
+                    glm::vec3(x * (terrainSize / 2) - terrainSize * 10, 0., z * (terrainSize / 2) - terrainSize * 10)
+                );
+                addInstance(entity);
+            }
+        }
+        m_patchLods[lod].getPrototype()->instanceCount = 100 * 100;
     }
 }
 
@@ -169,6 +188,28 @@ int TerrainManager::addMeshToIndexBuffer(std::vector<uint32_t> indexData) {
     return indexOffset;
 }
 
+int TerrainManager::addInstance(std::shared_ptr<Entity> entity) {
+    if (!entity->hasComponent<InstanceComponent>()) {
+        std::cout << "ERROR: No instance component found on entity!" << std::endl;
+        return -1;
+    }
+    std::shared_ptr<Entity> prototype = entity->getComponent<InstanceComponent>()->prototype;
+
+    int id = m_nextId;
+    entity->setId(m_nextId);
+    m_nextId = m_nextId + 1;
+    m_entities.push_back(entity);
+
+    TerrainPipeline::ModelData modelData;
+    glm::mat4x4 transform = entity->getComponent<TransformComponent>()->transform->getMatrix();
+    modelData.transform = transform;
+
+    std::vector<TerrainPipeline::ModelData> mds = { modelData };
+    writeModelBuffer(mds, m_nextModelBufferOffset);
+    m_nextModelBufferOffset += sizeof(TerrainPipeline::ModelData);
+    
+    return id;
+}
 
 std::vector<std::shared_ptr<Entity>> TerrainManager::getTerrainPatches(RenderModule::Camera camera) {
     // todo: frustum culling
@@ -179,12 +220,12 @@ std::vector<std::shared_ptr<Entity>> TerrainManager::getTerrainPatches(RenderMod
     // return patches within that frustum based on distance from camera
 
     std::vector<std::shared_ptr<Entity>> patches;
-    // for testing purposes, just return one patch. 
-    TerrainPatch patch = m_patchLods[0];
-    TerrainPatch patch1 = m_patchLods[1];
-    TerrainPatch patch2 = m_patchLods[2];
-    TerrainPatch patch8 = m_patchLods[8];
-    patches.push_back(patch8.getPrototype());
+    // for testing purposes, generate 100x100 grid of patches
+    for (int i = 0; i < 100; i++) {
+        for (int j = 0; j < 100; j++) {
+            patches.push_back(m_entities[((m_patchLods.size() - 1) * i * j) +(i * j) + j]);
+        }
+    }
 
     return patches;
 }

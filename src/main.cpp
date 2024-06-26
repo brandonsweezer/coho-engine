@@ -27,7 +27,7 @@ int main() {
     Engine engine;
 
     // making sky material
-    std::shared_ptr<coho::Texture> skyTexture = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "textures/autumn_park_4k.jpg"));
+    std::shared_ptr<coho::Texture> skyTexture = std::make_shared<coho::Texture>(ResourceLoader::loadTexture(RESOURCE_DIR, "textures/kloppenheim_06_puresky.jpg"));
     std::shared_ptr<Material> skyMaterial = std::make_shared<Material>();
     skyMaterial->name = "sky";
     skyMaterial->baseColor = glm::vec3(1.0);
