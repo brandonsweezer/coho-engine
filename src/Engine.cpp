@@ -57,7 +57,9 @@ Engine::Engine() {
     m_random = RandomNumberGenerator(42);
     std::cout << "}" << std::endl;
 
+    std::cout << "setting up bindings {" << std::endl;
     setupBindings();
+    std::cout << "}" << std::endl;
 }
 
 Engine::~Engine() {
@@ -306,7 +308,7 @@ bool Engine::initGPU() {
     requiredLimits.limits.maxVertexAttributes = 7;
     requiredLimits.limits.maxBufferSize = 1000000 * sizeof(DefaultPipeline::ModelData); // 1,000,000 models
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(Mesh::VertexData);
-    requiredLimits.limits.maxInterStageShaderComponents = 18;
+    requiredLimits.limits.maxInterStageShaderComponents = 22;
     requiredLimits.limits.maxStorageBuffersPerShaderStage = 2;
     requiredLimits.limits.maxStorageBufferBindingSize = 1000000 * sizeof(DefaultPipeline::ModelData); // 1 million objects
 

@@ -521,8 +521,11 @@ bool RenderModule::initDepthBuffer() {
 
 void RenderModule::updateProjectionMatrix() {
     float aspectRatio = (float)m_screenWidth / (float)m_screenHeight;
-    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.001f, 1000.0f);
+    m_uniformData.projection_matrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100000.f);
     m_device->getQueue().writeBuffer(m_uniformBuffer->getBuffer(), offsetof(DefaultPipeline::UniformData, projection_matrix), &m_uniformData.projection_matrix, sizeof(DefaultPipeline::UniformData::projection_matrix));
+    if (m_terrainuniformBuffer != nullptr) {
+        m_device->getQueue().writeBuffer(m_terrainuniformBuffer->getBuffer(), offsetof(TerrainPipeline::UniformData, projection_matrix), &m_uniformData.projection_matrix, sizeof(TerrainPipeline::UniformData::projection_matrix));
+    }
 }
 
 void RenderModule::updateViewMatrix() {
@@ -533,6 +536,13 @@ void RenderModule::updateViewMatrix() {
 		&m_uniformData,
 		sizeof(DefaultPipeline::UniformData)
 	);
+    if (m_terrainuniformBuffer != nullptr) {
+        m_device->getQueue().writeBuffer(m_terrainuniformBuffer->getBuffer(),
+            0,
+            &m_uniformData,
+            sizeof(TerrainPipeline::UniformData)
+        );
+    }
 }
 
 void RenderModule::resizeWindow(int new_width, int new_height) {

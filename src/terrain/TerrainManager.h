@@ -30,8 +30,8 @@ public:
 private: 
     int addMeshToVertexBuffer(std::vector<Mesh::VertexData> vertexData);
     int addMeshToIndexBuffer(std::vector<uint32_t> indexData);
-    int addPatch(std::shared_ptr<Entity> entity);
-    int addInstance(std::shared_ptr<Entity> entity);
+    int addPatch(std::shared_ptr<Entity> entity, int LOD);
+    int addInstance(std::shared_ptr<Entity> entity, int LOD);
     void addPatchToModelBuffer(std::vector<TerrainPipeline::ModelData> modelData, int offset = 0);
     void writeModelBuffer(std::vector<TerrainPipeline::ModelData> modelData, int offset = 0);
     bool initBuffers();
@@ -40,7 +40,7 @@ private:
 
 private:
     std::vector<TerrainPatch> m_patchLods;
-    std::vector<std::shared_ptr<Entity>> m_entities;
+    std::vector<std::vector<std::shared_ptr<Entity>>> m_entitiesByLod;
 
     std::shared_ptr<wgpu::Device> m_device;
 

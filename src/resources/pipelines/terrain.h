@@ -118,8 +118,8 @@ bool TerrainPipeline::init(
     fragmentState.targets = &colorTargetState;
     renderPipelineDesc.fragment = &fragmentState;
 
-    renderPipelineDesc.primitive.cullMode = wgpu::CullMode::None;
-    renderPipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
+    renderPipelineDesc.primitive.cullMode = wgpu::CullMode::Back;
+    renderPipelineDesc.primitive.frontFace = wgpu::FrontFace::CW;
     renderPipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleList; 
     renderPipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
 

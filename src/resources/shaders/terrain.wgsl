@@ -32,13 +32,14 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
-    @location(0) normal: vec3f,
-    @location(1) color: vec3f,
-    @location(2) viewDirection: vec3f,
-    @location(3) tangent: vec3f,
-    @location(4) bitangent: vec3f,
-    @location(5) uv: vec2f,
-    @location(6) instance_id: u32
+    @location(0) worldPosition: vec4f,
+    @location(1) normal: vec3f,
+    @location(2) color: vec3f,
+    @location(3) viewDirection: vec3f,
+    @location(4) tangent: vec3f,
+    @location(5) bitangent: vec3f,
+    @location(6) uv: vec2f,
+    @location(7) instance_id: u32
 }
 
 
@@ -193,6 +194,10 @@ fn fbm(x: vec3f, H: f32, numOctaves: u32, initialFrequency: f32) -> f32 {
     return t;
 }
 
+fn getHeight(noiseInput: vec3<f32>) -> f32 {
+    return mapZeroToOne(fbm(noiseInput, 0.9, 8u, .001)) * 1000.0 - 500.0;
+}
+
 @vertex
 fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_index) instance_id: u32 ) -> VertexOutput {
     var out: VertexOutput;
@@ -200,18 +205,45 @@ fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_in
     var worldPosition = modelData.transform * vec4f(in.position, 1.0);
 
     let noiseInput = worldPosition.xyz;
-    worldPosition.y = mapZeroToOne(fbm(noiseInput, 0.5, 8u, .01)) * 50.;
+    worldPosition.y = mapZeroToOne(fbm(noiseInput, 0.9, 8u, .001)) * 1000.0 - 500.0;
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
 
+    let delta = 0.1;
+    // Sample the heights at surrounding positions
+    let heightL = getHeight(noiseInput + vec3<f32>(-delta, 0.0, 0.0));
+    let heightR = getHeight(noiseInput + vec3<f32>( delta, 0.0, 0.0));
+    let heightD = getHeight(noiseInput + vec3<f32>(0.0, 0.0, -delta));
+    let heightU = getHeight(noiseInput + vec3<f32>(0.0, 0.0,  delta));
+    out.normal = normalize(vec3<f32>(heightL - heightR, 2 * delta, heightD - heightU));
+
+    out.worldPosition = worldPosition;
     out.tangent = (modelData.transform * vec4f(in.tangent, 0.0)).xyz;
 	out.bitangent = (modelData.transform * vec4f(in.bitangent, 0.0)).xyz;
-    out.normal = (modelData.transform * vec4f(in.normal, 0.0)).xyz;
     out.viewDirection = uUniformData.camera_world_position - worldPosition.xyz;
-    out.color = vec3f(worldPosition.y) / 25.;
+    
+    out.color = mapToGradient((worldPosition.y + 500) / 1000.0);
     out.uv = in.uv;
     out.instance_id = instance_id;
     
 	return out;
+}
+
+fn mapToGradient(value: f32) -> vec3f {
+    let color1 = vec3f(0.475, .630, 0.0504);
+    let color2 = vec3f(1.0, 1.0, 1.0);
+    let topThreshold = 0.1;
+    let bottomThreshold = 0.65;
+    
+    // Determine where the value falls in the range
+    if (value <= topThreshold) {
+        return color1;
+    } else if (value >= bottomThreshold) {
+        return color2;
+    } else {
+        // Interpolate between color1 and color2 for values in between
+        let t = (value - topThreshold) / (bottomThreshold - topThreshold);
+        return mix(color1, color2, t);
+    }
 }
 
 
@@ -233,52 +265,27 @@ fn perceivedLuminance(color: vec3f) -> f32 {
 
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
-    let modelData = modelBuffer[in.instance_id];
+    let noiseInput = in.worldPosition.xyz;
 
-    let localToWorld = mat3x3f(
-        normalize(in.tangent),
-        normalize(in.bitangent),
-        normalize(in.normal)
-    );
+    // calculate derivative
+    let delta = (.5/distance(uUniformData.camera_world_position, in.worldPosition.xyz));
+    // Sample the heights at surrounding positions
+    let heightL = getHeight(noiseInput + vec3<f32>(-delta, 0.0, 0.0));
+    let heightR = getHeight(noiseInput + vec3<f32>( delta, 0.0, 0.0));
+    let heightD = getHeight(noiseInput + vec3<f32>(0.0, 0.0, -delta));
+    let heightU = getHeight(noiseInput + vec3<f32>(0.0, 0.0,  delta));
     
-    let worldN = localToWorld * (2.0*in.normal - 1.0);
-    
-    // todo: need to figure out how to get the real normal
-    var N = normalize(mix(worldN, in.normal, 0.));
+    var normal = mix(normalize(in.normal), normalize(vec3<f32>(heightL - heightR, 2 * delta, heightD - heightU)), 0.5);
 
-    var lightPositions = array(
-        // vec3f(sin(uUniformData.time)*5.0, 2.0, cos(uUniformData.time)*5.0),
-        // vec3f(cos(uUniformData.time)*5.0, -2.0, sin(uUniformData.time)*5.0)
-        vec3f(0.0, 1000.0, 0.0),
-        // vec3f(5.0, -2.0, 5.0)
-    );
-    let V = normalize(in.viewDirection);
-
-    let reflectedUVs = calculateReflectionUVs(-reflect(V, N));
-    let normalUVs = calculateReflectionUVs(N);
-    
-    var albedo = in.color;
-
-    let kh = 60.0;
-    let kd = 0.8;
-    let ks = 0.5;
-    let ka = 0.2;
-
-    var color = vec3f(0.0);
-    for (var i: i32 = 0; i < 2; i++) { // loop for every light (we do one environment sample)
-        var L = normalize(lightPositions[i].xyz);
-
-        // let H = normalize(L + V);
-
-        let ambient = albedo;
-        let diffuse = max(0.0, dot(N, L)) * albedo;
-        // let diffuse = reflectedEnvironmentSample;
-        let specular = vec3f(0.0,0.0,0.0);
-        // let specular = pow(max(0.0, 1.0 - dot(V, N)), kh) * perceivedLuminance(reflectedRadianceSample) * reflectedEnvironmentSample;
-        color += (kd * diffuse) + (ks * specular) + (ka * ambient);
-    }
-
-    // color correction
+    // normal += fbm(in.position.xyz, 0.5, 4u, .1);
+    let lightDir = normalize(vec3(-1.,1.,-1.));
+    let diffuse1 = max(dot(normal, lightDir), 0.);
+    let diffuse2 = max(dot(normal, vec3(0.,1.,0.)), 0.);
+    let diffuseColor = diffuse1 * in.color + diffuse2 * in.color * 0.2;
+    var fogfactor = clamp(distance(uUniformData.camera_world_position, in.worldPosition.xyz) / 5000., 0., 1.);
+    fogfactor = 0.;
+    let color = mix(diffuseColor, vec3f(.6, .6, 0.65), fogfactor);
+    // let color = in.normal * 0.5 + vec3(0.5);
     let linear_color = pow(color, vec3f(2.2));
     return vec4f(linear_color, 1.0);
 }
