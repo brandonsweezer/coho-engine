@@ -27,7 +27,7 @@ TerrainManager::TerrainManager(std::shared_ptr<wgpu::Device> device, int numLods
 
         // register Lods in terrain vertex buffer
         std::shared_ptr<Entity> patchEntity = std::make_shared<Entity>();
-        patchEntity->addComponent<TransformComponent>();
+        patchEntity->addComponent<TransformComponent>()->transform->setScale(glm::vec3(0,0,0));
         patchEntity->addComponent<MeshComponent>()->mesh = patch.getMesh();
         patch.setPrototype(patchEntity);
         addPatch(patchEntity, lod);
@@ -36,8 +36,8 @@ TerrainManager::TerrainManager(std::shared_ptr<wgpu::Device> device, int numLods
         std::cout << "creating instances for lod: " << lod << std::endl;
         int terrainWidth = 100;
         int terrainDepth = 100;
-        for (int z = 0; z < terrainWidth; z++) {
-            for (int x = 0; x < terrainDepth; x++) {
+        for (int z = 0; z < terrainDepth; z++) {
+            for (int x = 0; x < terrainWidth; x++) {
                 std::shared_ptr<Entity> entity = std::make_shared<Entity>();
                 auto prototype = m_patchLods[lod].getPrototype();
                 entity->addComponent<InstanceComponent>()->prototype = prototype;

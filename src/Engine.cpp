@@ -42,7 +42,7 @@ Engine::Engine() {
     std::cout << "}" << std::endl;
 
     std::cout << "initializing terrainManager {" << std::endl;
-    terrainManager = std::make_shared<TerrainManager>(m_device, 8);
+    terrainManager = std::make_shared<TerrainManager>(m_device, 1);
     renderModule->addTerrainPipeline(
         terrainManager->getPipeline(),
         terrainManager->getVertexBuffer(),

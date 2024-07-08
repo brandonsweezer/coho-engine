@@ -42,6 +42,34 @@ struct VertexOutput {
     @location(7) instance_id: u32
 }
 
+fn voronoise(v: vec2<f32>) -> vec2f {
+    return vec2(sin(v.x) * cos(v.y), sin(v.y) * cos(v.x));
+}
+
+fn voronoi(p: vec2<f32>) -> f32 {
+    let i = floor(p);
+    let f = fract(p);
+
+    var minDist = 2.;
+    var closestPoint = vec2(0.);
+
+    var noiseInput = vec3(0., 0., 0.);
+    for (var x: f32 = -1.; x <= 1.; x = x + 1.) {
+        for (var y: f32 = -1.; y <= 1.; y = y + 1.) {
+            let neighbor = vec2(x, y);
+
+            noiseInput = vec3<f32>((neighbor + i).x, (neighbor + i).y, 0.);
+            let point = vec2(noise3D(noiseInput), noise3D(noiseInput * 1000));
+            let diff = neighbor + vec2(point) - f;
+            let dist = length(diff);
+            if (dist <= minDist) {
+                minDist = dist;
+                closestPoint = point;
+            }
+        }
+    }
+    return 1. - minDist;
+}
 
 fn noise3D(v: vec3<f32>) -> f32 {
     // let v = pos * 0.0001;
@@ -208,17 +236,7 @@ fn vs_main (in: VertexInput, @builtin(vertex_index) i: u32, @builtin(instance_in
     worldPosition.y = mapZeroToOne(fbm(noiseInput, 0.9, 8u, .001)) * 1000.0 - 500.0;
     out.position = uUniformData.projection_matrix * uUniformData.view_matrix * worldPosition;
 
-    let delta = 0.1;
-    // Sample the heights at surrounding positions
-    let heightL = getHeight(noiseInput + vec3<f32>(-delta, 0.0, 0.0));
-    let heightR = getHeight(noiseInput + vec3<f32>( delta, 0.0, 0.0));
-    let heightD = getHeight(noiseInput + vec3<f32>(0.0, 0.0, -delta));
-    let heightU = getHeight(noiseInput + vec3<f32>(0.0, 0.0,  delta));
-    out.normal = normalize(vec3<f32>(heightL - heightR, 2 * delta, heightD - heightU));
-
     out.worldPosition = worldPosition;
-    out.tangent = (modelData.transform * vec4f(in.tangent, 0.0)).xyz;
-	out.bitangent = (modelData.transform * vec4f(in.bitangent, 0.0)).xyz;
     out.viewDirection = uUniformData.camera_world_position - worldPosition.xyz;
     
     out.color = mapToGradient((worldPosition.y + 500) / 1000.0);
@@ -265,26 +283,48 @@ fn perceivedLuminance(color: vec3f) -> f32 {
 
 @fragment
 fn fs_main (in: VertexOutput) -> @location(0) vec4f {
-    let noiseInput = in.worldPosition.xyz;
+    // let noiseInput = in.worldPosition.xyz;
 
     // calculate derivative
-    let delta = (.5/distance(uUniformData.camera_world_position, in.worldPosition.xyz));
+    let delta = .01;
+    let noiseInput = in.worldPosition.xyz + vec3<f32>(in.uv.x, 0, in.uv.y);
     // Sample the heights at surrounding positions
     let heightL = getHeight(noiseInput + vec3<f32>(-delta, 0.0, 0.0));
     let heightR = getHeight(noiseInput + vec3<f32>( delta, 0.0, 0.0));
     let heightD = getHeight(noiseInput + vec3<f32>(0.0, 0.0, -delta));
     let heightU = getHeight(noiseInput + vec3<f32>(0.0, 0.0,  delta));
-    
-    var normal = mix(normalize(in.normal), normalize(vec3<f32>(heightL - heightR, 2 * delta, heightD - heightU)), 0.5);
+    let posL = in.worldPosition.xyz + vec3<f32>(-delta, heightL + in.worldPosition.y, 0.0) + vec3<f32>(in.uv.x, 0, in.uv.y);
+    let posR = in.worldPosition.xyz + vec3<f32>( delta, heightR + in.worldPosition.y, 0.0) + vec3<f32>(in.uv.x, 0, in.uv.y);
+    let posD = in.worldPosition.xyz + vec3<f32>(0.0, heightD + in.worldPosition.y, -delta) + vec3<f32>(in.uv.x, 0, in.uv.y);
+    let posU = in.worldPosition.xyz + vec3<f32>(0.0, heightU + in.worldPosition.y,  delta) + vec3<f32>(in.uv.x, 0, in.uv.y);
 
-    // normal += fbm(in.position.xyz, 0.5, 4u, .1);
-    let lightDir = normalize(vec3(-1.,1.,-1.));
+    // out.normal = normalize(vec3<f32>(heightL - heightR, 2 * delta, heightD - heightU));
+    let tangent = normalize(posR - posL);
+    let bitangent = normalize(posU - posD);
+    var normal = normalize(vec3<f32>(heightL - heightR, 2 * delta, heightD - heightU));
+
+    let bump = vec3f(0.,
+        voronoi(in.uv * 10),
+        0.
+    );
+    
+    let localToWorld = mat3x3f(
+        tangent,
+        bitangent,
+        normal
+    );
+
+    normal = localToWorld * vec3f(0., 1., 0.);
+
+    let lightDir = normalize(vec3(1.,1.,1.));
     let diffuse1 = max(dot(normal, lightDir), 0.);
-    let diffuse2 = max(dot(normal, vec3(0.,1.,0.)), 0.);
-    let diffuseColor = diffuse1 * in.color + diffuse2 * in.color * 0.2;
+    let diffuse2 = max(dot(normal, vec3(-0.2,1.,-0.4)), 0.);
+    let sunColor = vec3f(1., .98, .95);
+    let diffuseColor = diffuse1 * in.color * sunColor;
     var fogfactor = clamp(distance(uUniformData.camera_world_position, in.worldPosition.xyz) / 5000., 0., 1.);
     fogfactor = 0.;
-    let color = mix(diffuseColor, vec3f(.6, .6, 0.65), fogfactor);
+    var color = mix(diffuseColor, vec3f(.6, .6, 0.65), fogfactor);
+    // color = normal;
     // let color = in.normal * 0.5 + vec3(0.5);
     let linear_color = pow(color, vec3f(2.2));
     return vec4f(linear_color, 1.0);
