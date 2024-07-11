@@ -18,6 +18,8 @@ public:
     int addMaterial(std::shared_ptr<Material> material, std::shared_ptr<RenderModule> renderModule);
     int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<RenderModule> renderModule);
     std::shared_ptr<Entity> getSky();
+    int EntityManager::setQuad(std::shared_ptr<Entity> quad, std::shared_ptr<RenderModule> renderModule);
+    std::shared_ptr<Entity> getQuad();
 
     std::shared_ptr<Entity> camera;
 private:
@@ -32,4 +34,5 @@ private:
     int m_nextMaterialBufferOffset = 0;
 
     std::shared_ptr<Entity> m_sky = nullptr;
+    std::shared_ptr<Entity> m_quad = nullptr;
 };

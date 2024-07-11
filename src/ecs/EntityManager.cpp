@@ -8,6 +8,7 @@
 #include "components/Mesh.h"
 #include "components/MaterialComponent.h"
 #include "components/Material.h"
+#include "utilities/MeshBuilder.h"
 #include <memory>
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
@@ -161,6 +162,35 @@ int EntityManager::setSky(std::shared_ptr<Entity> sky, std::shared_ptr<RenderMod
     return id;
 }
 
+int EntityManager::setQuad(std::shared_ptr<Entity> quad, std::shared_ptr<RenderModule> renderModule) {
+    int id = m_nextId;
+    quad->setId(m_nextId);
+    m_nextId = m_nextId + 1;
+    m_entities.push_back(quad);
+    m_quad = quad;
+
+    glm::mat4x4 transform = quad->getComponent<TransformComponent>()->transform->getMatrix();
+    DefaultPipeline::ModelData modelData;
+    modelData.materialIndex = 0;
+    modelData.transform = transform;
+    modelData.isSkybox = 0;
+
+    std::vector<DefaultPipeline::ModelData> mds = { modelData };
+    renderModule->writeModelBuffer(mds, m_nextModelBufferOffset);
+    m_nextModelBufferOffset += sizeof(DefaultPipeline::ModelData);
+
+    std::shared_ptr<Mesh> mesh = quad->getComponent<MeshComponent>()->mesh;
+    std::vector<Mesh::VertexData> vds = mesh->m_vertexData;
+    int vertexBufferOffset = renderModule->addMeshToVertexBuffer(vds);
+    mesh->setVertexBufferOffset(vertexBufferOffset);
+    
+    std::vector<uint32_t> indices = mesh->getIndexData();
+    int indexBufferOffset = renderModule->addMeshToIndexBuffer(indices);
+    mesh->setIndexBufferOffset(indexBufferOffset);
+
+    return id;
+}
+
 // registers the material with the renderModule, assigns it an id, and returns the id
 int EntityManager::addMaterial(std::shared_ptr<Material> material, std::shared_ptr<RenderModule> renderModule) {
     int materialBufferIndex = renderModule->registerMaterial(material);
@@ -172,6 +202,10 @@ int EntityManager::addMaterial(std::shared_ptr<Material> material, std::shared_p
 
 std::shared_ptr<Entity> EntityManager::getSky() {
     return m_sky;
+}
+
+std::shared_ptr<Entity> EntityManager::getQuad() {
+    return m_quad;
 }
 
 std::vector<std::shared_ptr<Entity>> EntityManager::getAllEntities() {

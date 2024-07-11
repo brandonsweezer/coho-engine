@@ -372,6 +372,42 @@ std::shared_ptr<Mesh> MeshBuilder::createPlane(float width, float height, uint32
     return planeMesh;
 }
 
+std::shared_ptr<Mesh> MeshBuilder::createQuad() {
+    std::vector<Mesh::VertexData> vertices;
+    Mesh::VertexData vd0;
+    vd0.uv = vec2(0., 0.);
+    vd0.position = vec3(-.5, -.5, 0);
+    vertices.push_back(vd0);
+
+    Mesh::VertexData vd1;
+    vd1.uv = vec2(1., 1.);
+    vd1.position = vec3(.5, .5, 0);
+    vertices.push_back(vd1);
+
+    Mesh::VertexData vd2;
+    vd2.uv = vec2(0., 1.);
+    vd2.position = vec3(-.5, .5, 0);
+    vertices.push_back(vd2);
+
+    Mesh::VertexData vd3;
+    vd3.uv = vec2(1., 0.);
+    vd3.position = vec3(.5, -.5, 0);
+    vertices.push_back(vd3);
+
+    std::vector<uint32_t> indices;
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(2);
+    indices.push_back(0);
+    indices.push_back(3);
+    indices.push_back(1);
+    
+    std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>();
+    quadMesh->setVertexData(vertices);
+    quadMesh->setIndexData(indices);
+    return quadMesh;
+}
+
 vec3 MeshBuilder::positionFromSphericalCoords(float radius, float pitch, float heading) {
     return vec3(
         radius * cosf(glm::radians(pitch)) * sinf(glm::radians(heading)),

@@ -9,6 +9,7 @@
 
 #include "../resources/pipelines/default.h"
 #include "../resources/pipelines/terrain.h"
+#include "../resources/pipelines/FullscreenQuad.h"
 
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.hpp>
@@ -31,6 +32,7 @@ public:
         std::vector<std::shared_ptr<Entity>> terrainPatches,
         std::vector<std::shared_ptr<Entity>> entities,
         std::shared_ptr<Entity> sky,
+        std::shared_ptr<Entity> fullscreenQuad,
         float time);
     void writeModelBuffer(std::vector<DefaultPipeline::ModelData> modelData, int offset);
     void writeMaterialBuffer(std::vector<DefaultPipeline::MaterialData> materialData, int offset);
@@ -39,6 +41,14 @@ public:
     void resizeWindow(int new_width, int new_height);
 
     void addTerrainPipeline(std::shared_ptr<TerrainPipeline> pipeline,
+        std::shared_ptr<coho::Buffer> vertexBuffer,
+        uint32_t vertexCount,
+        std::shared_ptr<coho::Buffer> indexBuffer,
+        uint32_t indexCount,
+        std::shared_ptr<coho::Buffer> uniformBuffer
+        );
+    
+    void addFullscreenQuadPipeline(std::shared_ptr<FullscreenQuadPipeline> pipeline,
         std::shared_ptr<coho::Buffer> vertexBuffer,
         uint32_t vertexCount,
         std::shared_ptr<coho::Buffer> indexBuffer,
@@ -103,6 +113,7 @@ private:
     void geometryRenderPass(std::vector<std::shared_ptr<Entity>> entities);
     void terrainRenderPass(std::vector<std::shared_ptr<Entity>> patches);
     void skyBoxRenderPass(std::shared_ptr<Entity> sky);
+    void noiseVisRenderPass(std::shared_ptr<Entity> quad);
 
 private:
     int m_screenWidth = 720;
@@ -119,12 +130,14 @@ private:
     wgpu::SurfaceTexture m_surfaceTexture;
     std::shared_ptr<wgpu::Device> m_device = nullptr;
     std::shared_ptr<coho::Shader> m_shader = nullptr;
+    std::shared_ptr<coho::Shader> m_visShader = nullptr;
 
     wgpu::TextureFormat m_preferredFormat = wgpu::TextureFormat::BGRA8Unorm;
     wgpu::TextureFormat m_depthTextureFormat = wgpu::TextureFormat::Depth24Plus;
 
     std::shared_ptr<coho::DefaultPipeline> m_renderPipeline;
     std::shared_ptr<coho::TerrainPipeline> m_terrainPipeline;
+    std::shared_ptr<coho::FullscreenQuadPipeline> m_fullscreenQuadRenderPipeline;
 
     std::unique_ptr<wgpu::ErrorCallback> m_deviceErrorCallback;
 

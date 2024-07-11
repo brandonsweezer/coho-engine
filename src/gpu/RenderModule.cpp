@@ -2,6 +2,9 @@
 #include "../ResourceLoader.h"
 #include "../ecs/Entity.h"
 #include "../ecs/components/MeshComponent.h"
+#include "../ecs/components/TransformComponent.h"
+
+#include "../utilities/MeshBuilder.h"
 
 #include "../memory/Buffer.h"
 #include "../memory/Shader.h"
@@ -9,6 +12,8 @@
 #include "../resources/renderpass/skybox.h"
 #include "../resources/renderpass/geometry.h"
 #include "../resources/renderpass/terrain.h"
+#include "../resources/renderpass/noiseVis.h"
+#include "../resources/pipelines/FullscreenQuad.h"
 
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
@@ -22,7 +27,7 @@ using vec2 = glm::vec2;
 using mat4x4 = glm::mat4x4;
 using VertexData = Mesh::VertexData;
 
-const float PI = 3.14159265358979323846f;
+// const float PI = 3.14159265358979323846f;
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
@@ -55,6 +60,22 @@ void RenderModule::addTerrainPipeline(
     m_terrainuniformBuffer = uniformBuffer;
 }
 
+// void RenderModule::addFullscreenQuadPipeline(
+//         std::shared_ptr<FullscreenQuadPipeline> pipeline,
+//         std::shared_ptr<coho::Buffer> vertexBuffer,
+//         uint32_t vertexCount,
+//         std::shared_ptr<coho::Buffer> indexBuffer,
+//         uint32_t indexCount,
+//         std::shared_ptr<coho::Buffer> uniformBuffer
+//         ) {
+//     m_fullscreenQuadVertexBuffer = vertexBuffer;
+//     m_fullscreenQuadVertexCount = vertexCount;
+//     m_fullscreenQuadIndexBuffer = indexBuffer;
+//     m_fullscreenQuadIndexCount = indexCount;
+//     m_fullscreenQuadPipeline = pipeline;
+//     m_fullscreenQuadUniformBuffer = uniformBuffer;
+// }
+
 void RenderModule::writeModelBuffer(std::vector<DefaultPipeline::ModelData> modelData, int offset = 0) {
     m_device->getQueue().writeBuffer(m_modelBuffer->getBuffer(), offset, modelData.data(), modelData.size() * sizeof(DefaultPipeline::ModelData));
 }
@@ -66,7 +87,9 @@ void RenderModule::writeMaterialBuffer(std::vector<DefaultPipeline::MaterialData
 void RenderModule::onFrame(
         std::vector<std::shared_ptr<Entity>> terrainPatches,
         std::vector<std::shared_ptr<Entity>> entities,
-        std::shared_ptr<Entity> sky, float time) {
+        std::shared_ptr<Entity> sky,
+        std::shared_ptr<Entity> fullscreenQuad,
+        float time) {
     m_uniformData.time = time;
     m_device->getQueue().writeBuffer(m_uniformBuffer->getBuffer(), offsetof(DefaultPipeline::UniformData, time), &m_uniformData.time, sizeof(DefaultPipeline::UniformData::time));
     m_device->getQueue().writeBuffer(m_terrainuniformBuffer->getBuffer(), 0, &m_uniformData, sizeof(TerrainPipeline::UniformData));
@@ -94,9 +117,10 @@ void RenderModule::onFrame(
         std::cerr << "m_surfaceTexture.status: " << m_surfaceTexture.status << std::endl;
     }
     
-    skyBoxRenderPass(sky);
-    geometryRenderPass(entities);
-    terrainRenderPass(terrainPatches);
+    noiseVisRenderPass(fullscreenQuad);
+    // skyBoxRenderPass(sky);
+    // geometryRenderPass(entities);
+    // terrainRenderPass(terrainPatches);
     m_surface->present();
 }
 
@@ -111,6 +135,21 @@ void RenderModule::terrainRenderPass(std::vector<std::shared_ptr<Entity>> patche
         m_terrainindexCount * sizeof(uint32_t),
         m_terrainPipeline->m_bindGroup,
         patches
+    );
+}
+
+void RenderModule::noiseVisRenderPass(std::shared_ptr<Entity> quad) {
+    NoiseVisRenderPass::render(
+        *m_device,
+        m_surfaceTextureView,
+        m_depthTextureView,
+        m_fullscreenQuadRenderPipeline->getRenderPipeline(),
+        m_vertexBuffer->getBuffer(), 
+        m_vertexCount * sizeof(VertexData),
+        m_indexBuffer->getBuffer(),
+        m_vertexCount * sizeof(VertexData),
+        m_fullscreenQuadRenderPipeline->m_bindGroup,
+        quad
     );
 }
 
@@ -179,6 +218,7 @@ void RenderModule::releaseSurfaceTexture() {
 void RenderModule::releaseRenderPipeline() {
     m_renderPipeline.reset();
     m_terrainPipeline.reset();
+    m_fullscreenQuadRenderPipeline.reset();
 }
 
 void RenderModule::releaseBuffers() {
@@ -197,6 +237,7 @@ void RenderModule::releaseBuffers() {
 
 void RenderModule::releaseShaderModule() {
     m_shader.reset();
+    m_visShader.reset();
 }
 
 void RenderModule::releaseDevice() {
@@ -416,6 +457,16 @@ bool RenderModule::initRenderPipeline() {
         m_shader,
         m_shader
         );
+    
+    m_fullscreenQuadRenderPipeline = std::make_shared<coho::FullscreenQuadPipeline>(
+        m_vertexBuffer,
+        m_indexBuffer,
+        m_uniformBuffer,
+        m_modelBuffer,
+        m_materialBuffer,
+        m_visShader,
+        m_visShader
+        );
 
     std::cout << "running render pipeline init tasks" << std::endl;
     if (!m_renderPipeline->init(*m_device, m_preferredFormat, m_textureViewArray)) {
@@ -429,15 +480,27 @@ bool RenderModule::initRenderPipeline() {
         return false;
     }
 
+    std::cout << "running fullscreen quad pipeline init tasks" << std::endl;
+    if (!m_fullscreenQuadRenderPipeline->init(*m_device, m_preferredFormat, m_textureViewArray)) {
+        std::cout << "failed to init fullscreen quad pipeline!" << std::endl;
+        return false;
+    }
+
     return true;
 }
 
 bool RenderModule::initShaderModule() {
     std::cout << "initializing shader module" << std::endl;
     m_shader = std::make_shared<coho::Shader>(RESOURCE_DIR, "shaders/shader.wgsl", m_device);
-    
+
     if (m_shader->getShaderModule() == nullptr) {
         std::cout << "failed to init shader module" << std::endl;
+        return false;
+    }
+
+    m_visShader = std::make_shared<coho::Shader>(RESOURCE_DIR, "shaders/vis.wgsl", m_device);
+    if (m_visShader->getShaderModule() == nullptr) {
+        std::cout << "failed to init noise shader module" << std::endl;
         return false;
     }
 

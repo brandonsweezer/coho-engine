@@ -6,6 +6,7 @@
 #include "gpu/ComputeModule.h"
 #include "noise/RandomNumberGenerator.h"
 #include "ecs/components/TransformComponent.h"
+#include "ecs/components/MeshComponent.h"
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
@@ -83,6 +84,12 @@ void Engine::start() {
     m_isRunning = true;
     m_isDrawing = true;
     m_isSimulating = true;
+
+    auto quad = std::make_shared<Entity>();
+    quad->addComponent<TransformComponent>();
+    quad->addComponent<MeshComponent>()->mesh = MeshBuilder::createQuad();
+    // quad->addComponent<MeshComponent>()->mesh = MeshBuilder::createCube(1);
+    entityManager->setQuad(quad, renderModule);
 
     std::cout << "== vroom vroom ==" << std::endl;
     while (m_isRunning) {
@@ -172,6 +179,7 @@ void Engine::draw() {
         terrainManager->getTerrainPatches(renderModule->m_camera),
         entityManager->getRenderableEntities(),
         entityManager->getSky(),
+        entityManager->getQuad(),
         m_time);
 
     m_lastMouseState = inputManager->getMouseState();
